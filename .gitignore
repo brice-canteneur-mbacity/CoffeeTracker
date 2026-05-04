@@ -1,0 +1,17 @@
+## Build output
+bin/
+obj/
+Generated/
+*.user
+*.suo
+
+## VS / Rider
+.vs/
+.idea/
+*.swp
+
+## Logs
+*.log
+
+## Local secrets — DO NOT COMMIT
+wwwroot/devKey.js

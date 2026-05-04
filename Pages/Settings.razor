@@ -1,0 +1,272 @@
+@page "/settings"
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@inject CoffeeDb Db
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject PlaceSearchService PlaceSearch
+
+<PageTitle>Réglages</PageTitle>
+
+<PageHeader Title="Réglages" Back="true" BackUrl="/stats" />
+
+<MudStack Spacing="3">
+
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudText Typo="Typo.h6" Class="mb-1">Sauvegarde locale</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            Tes données sont stockées localement dans ton navigateur. Exporte régulièrement
+            pour ne rien perdre en cas de réinstallation ou de changement d'appareil.
+        </MudText>
+
+        <MudStack Spacing="2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Download"
+                       OnClick="ExportAsync" Disabled="_busy">
+                Exporter en JSON
+            </MudButton>
+
+            <div>
+                <InputFile id="importInput" OnChange="OnImportFileSelectedAsync"
+                           accept="application/json" style="display:none;" />
+                <label for="importInput" class="upload-button" style="padding: 10px 16px; font-size: 14px;">
+                    <MudIcon Icon="@Icons.Material.Filled.Upload" Size="Size.Small" />
+                    <span>Importer un fichier JSON…</span>
+                </label>
+            </div>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudText Typo="Typo.h6" Class="mb-1">Recherche de coffee shops</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            Sans clé : on utilise OpenStreetMap (gratuit, données moins riches).
+            Avec une clé Google Maps Platform : Google Places (plus précis, photos potentielles).
+            Le quota gratuit Google (200 $/mois de crédit) couvre largement un usage perso.
+            <MudLink Href="https://developers.google.com/maps/documentation/javascript/get-api-key"
+                     Target="_blank">Obtenir une clé</MudLink>.
+            Pense à restreindre la clé par HTTP referrer dans la console Google Cloud.
+        </MudText>
+        <MudTextField @bind-Value="_googleKey" Label="Clé API Google (optionnelle)"
+                      Variant="Variant.Outlined" InputType="InputType.Password"
+                      Placeholder="AIzaSy…" />
+        <div class="d-flex mt-2" style="gap:8px;">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="SaveGoogleKeyAsync" Disabled="_busy">Enregistrer</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Clear"
+                       OnClick="ClearGoogleKeyAsync" Disabled="_busy">Effacer</MudButton>
+        </div>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudText Typo="Typo.h6" Class="mb-1">Zone dangereuse</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            Supprime toutes les données de l'application (cafés, brews, visites). Irréversible.
+        </MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Error"
+                   StartIcon="@Icons.Material.Filled.DeleteForever"
+                   OnClick="EraseAllAsync" Disabled="_busy">
+            Tout effacer
+        </MudButton>
+    </MudPaper>
+
+</MudStack>
+
+@code {
+    private bool _busy;
+    private string? _googleKey;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _googleKey = await PlaceSearch.GetGoogleKeyAsync();
+    }
+
+    private async Task SaveGoogleKeyAsync()
+    {
+        _busy = true;
+        try
+        {
+            await PlaceSearch.SetGoogleKeyAsync(_googleKey);
+            Snackbar.Add(string.IsNullOrWhiteSpace(_googleKey) ? "Clé effacée" : "Clé enregistrée", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ClearGoogleKeyAsync()
+    {
+        _googleKey = null;
+        await PlaceSearch.SetGoogleKeyAsync(null);
+        Snackbar.Add("Clé effacée — passage en OpenStreetMap", Severity.Info);
+    }
+
+    private static readonly JsonSerializerOptions ExportOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private static readonly JsonSerializerOptions ImportOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+
+    private async Task ExportAsync()
+    {
+        _busy = true;
+        try
+        {
+            var coffees = await Db.Coffees.ToCollection().ToList();
+            var brews = await Db.Brews.ToCollection().ToList();
+            var visits = await Db.ShopVisits.ToCollection().ToList();
+            var machines = await Db.Machines.ToCollection().ToList();
+
+            var data = new ExportFile
+            {
+                Version = 3,
+                ExportedAt = DateTime.UtcNow,
+                Coffees = coffees,
+                Brews = brews,
+                ShopVisits = visits,
+                Machines = machines
+            };
+
+            var json = JsonSerializer.Serialize(data, ExportOptions);
+            var filename = $"coffee-tracker-{DateTime.Now:yyyy-MM-dd}.json";
+            await JS.InvokeVoidAsync("coffeeData.downloadJson", filename, json);
+
+            Snackbar.Add($"Sauvegarde téléchargée ({coffees.Count} cafés, {brews.Count} brews, {visits.Count} visites, {machines.Count} machines)", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur export : {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OnImportFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        string json;
+        try
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            json = await reader.ReadToEndAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur lecture du fichier : {ex.Message}", Severity.Error);
+            return;
+        }
+
+        ExportFile? parsed;
+        try
+        {
+            parsed = JsonSerializer.Deserialize<ExportFile>(json, ImportOptions);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fichier JSON invalide : {ex.Message}", Severity.Error);
+            return;
+        }
+
+        if (parsed is null)
+        {
+            Snackbar.Add("Fichier JSON vide ou invalide", Severity.Error);
+            return;
+        }
+
+        var summary = $"{parsed.Coffees?.Count ?? 0} cafés, {parsed.Brews?.Count ?? 0} brews, {parsed.ShopVisits?.Count ?? 0} visites, {parsed.Machines?.Count ?? 0} machines";
+        var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
+        {
+            Title = "Importer ?",
+            Message = $"Cette opération va REMPLACER toutes tes données actuelles par {summary}. Continuer ?",
+            YesText = "Importer (remplacer)",
+            CancelText = "Annuler"
+        });
+        if (ok != true) return;
+
+        _busy = true;
+        try
+        {
+            await Db.Coffees.Clear();
+            await Db.Brews.Clear();
+            await Db.ShopVisits.Clear();
+            await Db.Machines.Clear();
+
+            foreach (var c in parsed.Coffees ?? new()) await Db.Coffees.Put(c);
+            foreach (var b in parsed.Brews ?? new()) await Db.Brews.Put(b);
+            foreach (var v in parsed.ShopVisits ?? new()) await Db.ShopVisits.Put(v);
+            foreach (var m in parsed.Machines ?? new()) await Db.Machines.Put(m);
+
+            Snackbar.Add($"Import terminé ({summary})", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur import : {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task EraseAllAsync()
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
+        {
+            Title = "Tout effacer ?",
+            Message = "Cette action supprime DÉFINITIVEMENT tous tes cafés, brews et visites. Action irréversible.",
+            YesText = "Tout effacer",
+            CancelText = "Annuler"
+        });
+        if (ok != true) return;
+
+        _busy = true;
+        try
+        {
+            await Db.Coffees.Clear();
+            await Db.Brews.Clear();
+            await Db.ShopVisits.Clear();
+            await Db.Machines.Clear();
+            Snackbar.Add("Toutes les données ont été supprimées", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private class ExportFile
+    {
+        public int Version { get; set; } = 3;
+        public DateTime ExportedAt { get; set; }
+        public List<Coffee>? Coffees { get; set; }
+        public List<Brew>? Brews { get; set; }
+        public List<CoffeeShopVisit>? ShopVisits { get; set; }
+        public List<Machine>? Machines { get; set; }
+    }
+}

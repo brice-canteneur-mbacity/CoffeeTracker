@@ -1,0 +1,191 @@
+html, body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #fdfaf6;
+    overscroll-behavior-y: none;
+}
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }
+
+.blazor-error-boundary {
+    background: #b32121;
+    padding: 1rem;
+    color: white;
+}
+
+    .blazor-error-boundary::after {
+        content: "Une erreur est survenue."
+    }
+
+.loading-progress {
+    position: relative;
+    display: block;
+    width: 8rem;
+    height: 8rem;
+    margin: 20vh auto 1rem auto;
+}
+
+    .loading-progress circle {
+        fill: none;
+        stroke: #f6efe4;
+        stroke-width: 0.6rem;
+        transform-origin: 50% 50%;
+        transform: rotate(-90deg);
+    }
+
+        .loading-progress circle:last-child {
+            stroke: #3b2418;
+            stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+            transition: stroke-dasharray 0.05s ease-in-out;
+        }
+
+.loading-progress-text {
+    position: absolute;
+    text-align: center;
+    font-weight: bold;
+    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+    color: #3b2418;
+}
+
+    .loading-progress-text:after {
+        content: var(--blazor-load-percentage-text, "Chargement");
+    }
+
+.bottom-nav-spacer {
+    height: calc(72px + env(safe-area-inset-bottom));
+}
+
+.page-container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+.upload-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 12px;
+    background: #f6efe4;
+    color: #3b2418;
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    width: fit-content;
+    transition: background-color .15s;
+}
+.upload-button:hover { background: #e8d7be; }
+.upload-button:active { transform: scale(.97); }
+
+/* ---------- Coffee map (Leaflet overrides) ---------- */
+.leaflet-container {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #fdfaf6;
+}
+.leaflet-container a.leaflet-popup-close-button {
+    color: #8a7560;
+}
+.leaflet-popup-content-wrapper {
+    background: #fdfaf6;
+    color: #241510;
+    border-radius: 14px;
+    box-shadow: 0 6px 24px rgba(59, 36, 24, 0.18);
+}
+.leaflet-popup-tip {
+    background: #fdfaf6;
+    box-shadow: 0 4px 8px rgba(59, 36, 24, 0.12);
+}
+.leaflet-popup-content {
+    margin: 12px 14px;
+    line-height: 1.4;
+}
+.leaflet-control-attribution {
+    background: rgba(253, 250, 246, 0.85) !important;
+    color: #7a6649 !important;
+    border-radius: 6px 0 0 0;
+    font-size: 10px !important;
+}
+.leaflet-control-attribution a {
+    color: #5a3a1d !important;
+}
+.leaflet-bar a {
+    background: #fdfaf6 !important;
+    color: #3b2418 !important;
+    border-color: #e8d7be !important;
+}
+.leaflet-bar a:hover {
+    background: #f6efe4 !important;
+}
+
+/* Custom marker (rating badge) */
+.coffee-marker { background: transparent; border: none; }
+.coffee-marker-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #fdfaf6;
+    box-shadow: 0 2px 8px rgba(59, 36, 24, 0.35);
+    color: #fdfaf6;
+    font-weight: 700;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform .12s ease;
+}
+.coffee-marker-dot:hover { transform: scale(1.1); }
+
+/* Popup content */
+.coffee-popup {
+    min-width: 180px;
+}
+.coffee-popup-title {
+    font-weight: 600;
+    color: #241510;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+.coffee-popup-meta {
+    color: #7a6649;
+    font-size: 12px;
+}
+.coffee-popup-stars {
+    color: #f59e0b;
+    margin-top: 6px;
+    letter-spacing: 1px;
+}
+.coffee-popup-date {
+    color: #8a7560;
+    font-size: 11px;
+    margin-top: 2px;
+}
+.coffee-popup-link {
+    display: inline-block;
+    margin-top: 8px;
+    color: #3b2418;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+}
+.coffee-popup-link:hover { text-decoration: underline; }

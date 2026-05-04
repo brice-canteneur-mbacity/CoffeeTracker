@@ -1,0 +1,24 @@
+{
+  "name": "Coffee Tracker",
+  "short_name": "Coffee",
+  "description": "Suivi de tes cafés, brews et coffee shops.",
+  "id": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fdfaf6",
+  "theme_color": "#3b2418",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ]
+}

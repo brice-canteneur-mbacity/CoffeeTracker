@@ -1,0 +1,19 @@
+@using MudBlazor
+
+<MudThemeProvider Theme="@CoffeeTheme.Default" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Introuvable</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <MudText Class="pa-4">Aucune page à cette adresse.</MudText>
+        </LayoutView>
+    </NotFound>
+</Router>

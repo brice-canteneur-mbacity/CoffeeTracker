@@ -1,0 +1,226 @@
+@page "/"
+@page "/coffees"
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+
+<PageTitle>Cafés</PageTitle>
+
+<PageHeader Title="Cafés" Subtitle="@_subtitle">
+    <Action>
+        <MudIconButton Icon="@Icons.Material.Filled.Add"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Size="Size.Medium"
+                       OnClick="@(() => Nav.NavigateTo("/coffees/new"))" />
+    </Action>
+</PageHeader>
+
+<MudTextField @bind-Value="_search" Placeholder="Rechercher (torréfacteur, origine, variété…)"
+              Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2"
+              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+              Clearable="true" Immediate="true" DebounceInterval="150" />
+
+<MudTabs Elevation="0" Rounded="true" Color="Color.Primary"
+         ActivePanelIndex="@_tabIndex" ActivePanelIndexChanged="@(i => _tabIndex = i)"
+         Class="mb-3">
+    <MudTabPanel Text="@($"En cours ({Filter(_active).Count})")" />
+    <MudTabPanel Text="@($"Terminés ({Filter(_finished).Count})")" />
+    <MudTabPanel Text="@($"Dégustés ({Filter(_tasted).Count})")" />
+</MudTabs>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+}
+else
+{
+    var sourceList = _tabIndex switch { 0 => _active, 1 => _finished, _ => _tasted };
+    var list = Filter(sourceList);
+    var hasSearch = !string.IsNullOrWhiteSpace(_search);
+    if (list.Count == 0)
+    {
+        <MudPaper Class="pa-8 d-flex flex-column align-center" Elevation="0">
+            <MudIcon Icon="@Icons.Material.Filled.Coffee" Size="Size.Large" Class="mb-3" Style="color:#a06d3b" />
+            @if (hasSearch)
+            {
+                <MudText Typo="Typo.h6">Aucun résultat</MudText>
+                <MudText Class="mud-text-secondary">pour « @_search »</MudText>
+            }
+            else
+            {
+                var emptyTitle = _tabIndex switch
+                {
+                    0 => "Aucun café en cours",
+                    1 => "Aucun café terminé",
+                    _ => "Aucun café dégusté"
+                };
+                <MudText Typo="Typo.h6">@emptyTitle</MudText>
+                @if (_tabIndex == 0)
+                {
+                    <MudText Class="mb-4 mud-text-secondary">Ajoute ton premier sac.</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="@(() => Nav.NavigateTo("/coffees/new"))">Ajouter un café</MudButton>
+                }
+                else if (_tabIndex == 2)
+                {
+                    <MudText Class="mb-4 mud-text-secondary">Ils apparaissent ici quand tu en associes à une visite shop.</MudText>
+                }
+            }
+        </MudPaper>
+    }
+    else
+    {
+        <MudStack Spacing="2">
+            @foreach (var c in list)
+            {
+                <MudPaper Class="pa-3 coffee-card" Elevation="0"
+                          @onclick="@(() => Nav.NavigateTo($"/coffees/{c.Id}"))">
+                    <div class="d-flex" style="gap:12px;">
+                        @if (!string.IsNullOrEmpty(c.PhotoDataUrl))
+                        {
+                            <img src="@c.PhotoDataUrl" alt="" class="thumb-lg" />
+                        }
+                        else
+                        {
+                            <div class="thumb-lg thumb-placeholder">
+                                <MudIcon Icon="@Icons.Material.Filled.Coffee" />
+                            </div>
+                        }
+                        <div style="flex:1; min-width:0;">
+                            <MudText Typo="Typo.caption" Class="text-uppercase mud-text-secondary" Style="letter-spacing:.04em;">@c.Roaster</MudText>
+                            <MudText Typo="Typo.subtitle1" Style="font-weight:600;line-height:1.2;">@c.Name</MudText>
+                            <div class="d-flex flex-wrap mt-1" style="gap:6px 12px; font-size:12px; color:#7a6649;">
+                                @if (!string.IsNullOrEmpty(c.Country))
+                                {
+                                    <span><MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />@c.Country@(string.IsNullOrEmpty(c.Region) ? "" : $", {c.Region}")</span>
+                                }
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Filled">@c.Process.GetLabel()</MudChip>
+                                @if (c.IsDecaf)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Filled">Décaf</MudChip>
+                                }
+                                @if (c.IsBlend)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Tertiary" Variant="Variant.Filled">Blend</MudChip>
+                                }
+                                @if (!c.IsOwned)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Dégusté</MudChip>
+                                }
+                                @{
+                                    var days = Format.DaysSince(c.RoastDate);
+                                }
+                                @if (days is not null)
+                                {
+                                    <span><MudIcon Icon="@Icons.Material.Filled.Today" Size="Size.Small" />@(days == 0 ? "Torréfié aujourd'hui" : $"Torréfié il y a {days}j")</span>
+                                }
+                            </div>
+                            @{ var stock = _tabIndex == 0 ? Stock(c) : null; }
+                            @if (stock is not null)
+                            {
+                                <div class="stock-bar mt-2">
+                                    <div class="stock-bar-track">
+                                        <div class="stock-bar-fill @stock.Value.ColorClass"
+                                             style="@($"width: {stock.Value.Pct.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}%;")"></div>
+                                    </div>
+                                    <span class="stock-bar-text">@stock.Value.Remaining.ToString("0.#") g</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </MudPaper>
+            }
+        </MudStack>
+    }
+}
+
+<style>
+    .coffee-card {
+        border: 1px solid #f0e7d8;
+        cursor: pointer;
+        transition: transform .08s ease;
+    }
+    .coffee-card:active {
+        transform: scale(.99);
+    }
+    .thumb-lg {
+        width: 64px; height: 64px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
+    }
+    .thumb-placeholder {
+        background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b;
+    }
+    .stock-bar {
+        display: flex; align-items: center; gap: 8px;
+    }
+    .stock-bar-track {
+        flex: 1; height: 4px; border-radius: 2px; background: #f0e7d8; overflow: hidden;
+    }
+    .stock-bar-fill {
+        height: 100%; transition: width .2s ease;
+    }
+    .stock-bar-fill.stock-ok { background: #5a3a1d; }
+    .stock-bar-fill.stock-mid { background: #f59e0b; }
+    .stock-bar-fill.stock-low { background: #dc2626; }
+    .stock-bar-text {
+        font-size: 11px; color: #7a6649; font-weight: 500; font-variant-numeric: tabular-nums;
+        min-width: 50px; text-align: right;
+    }
+</style>
+
+@code {
+    private bool _loading = true;
+    private int _tabIndex;
+    private List<Coffee> _active = new();
+    private List<Coffee> _finished = new();
+    private List<Coffee> _tasted = new();
+    private string _subtitle = string.Empty;
+    private Dictionary<int, decimal> _usedByCoffee = new();
+    private string _search = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var all = await Db.Coffees.OrderBy(nameof(Coffee.CreatedAt)).Reverse().ToList();
+        _active = all.Where(c => c.IsOwned && c.FinishedAt is null).ToList();
+        _finished = all.Where(c => c.IsOwned && c.FinishedAt is not null).ToList();
+        _tasted = all.Where(c => !c.IsOwned).ToList();
+        var ownedCount = _active.Count + _finished.Count;
+        _subtitle = $"{ownedCount} sac{(ownedCount > 1 ? "s" : "")}"
+                  + (_tasted.Count > 0 ? $" · {_tasted.Count} dégusté{(_tasted.Count > 1 ? "s" : "")}" : "");
+
+        var brews = await Db.Brews.ToCollection().ToList();
+        _usedByCoffee = brews
+            .GroupBy(b => b.CoffeeId)
+            .ToDictionary(g => g.Key, g => g.Sum(b => b.DoseG ?? 0m));
+
+        _loading = false;
+    }
+
+    private List<Coffee> Filter(List<Coffee> list)
+    {
+        if (string.IsNullOrWhiteSpace(_search)) return list;
+        var q = _search.Trim();
+        var sc = StringComparison.OrdinalIgnoreCase;
+        return list.Where(c =>
+            c.Roaster.Contains(q, sc)
+            || c.Name.Contains(q, sc)
+            || (c.Country?.Contains(q, sc) ?? false)
+            || (c.Region?.Contains(q, sc) ?? false)
+            || (c.Farm?.Contains(q, sc) ?? false)
+            || (c.Producer?.Contains(q, sc) ?? false)
+            || (c.Variety?.Contains(q, sc) ?? false)
+            || (c.Composition?.Contains(q, sc) ?? false)
+            || (c.TastingNotes?.Contains(q, sc) ?? false)
+        ).ToList();
+    }
+
+    private (decimal Remaining, double Pct, string ColorClass)? Stock(Coffee c)
+    {
+        if (c.WeightGrams is not int total || total <= 0) return null;
+        var used = _usedByCoffee.GetValueOrDefault(c.Id, 0m);
+        var remaining = total - used;
+        var pct = (double)Math.Max(0m, remaining) / total * 100;
+        var cls = remaining <= 30m ? "stock-low" : (remaining <= 60m ? "stock-mid" : "stock-ok");
+        return (remaining, pct, cls);
+    }
+}

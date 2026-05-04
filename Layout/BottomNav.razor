@@ -1,0 +1,90 @@
+@implements IDisposable
+@inject NavigationManager Nav
+
+<nav class="bottom-nav">
+    @foreach (var item in _items)
+    {
+        var active = IsActive(item.Path);
+        <button type="button"
+                class="@(active ? "bottom-nav-item active" : "bottom-nav-item")"
+                @onclick="() => Nav.NavigateTo(item.Path)">
+            <MudIcon Icon="@item.Icon" Size="Size.Medium" />
+            <span>@item.Label</span>
+        </button>
+    }
+</nav>
+
+<style>
+    .bottom-nav {
+        position: fixed;
+        inset: auto 0 0 0;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: saturate(180%) blur(10px);
+        border-top: 1px solid #f6efe4;
+        padding-bottom: env(safe-area-inset-bottom);
+        z-index: 1100;
+        display: flex;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .bottom-nav-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        padding: 10px 4px;
+        background: none;
+        border: none;
+        color: #b8a78f;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: color .15s ease;
+    }
+    .bottom-nav-item.active {
+        color: #3b2418;
+    }
+    .bottom-nav-item.active .mud-icon-root {
+        transform: scale(1.05);
+    }
+    .bottom-nav-item:active {
+        transform: scale(.96);
+    }
+</style>
+
+@code {
+    private record NavItem(string Path, string Label, string Icon);
+
+    private readonly NavItem[] _items =
+    {
+        new("/coffees", "Cafés", Icons.Material.Filled.Coffee),
+        new("/brews", "Brews", Icons.Material.Filled.LocalCafe),
+        new("/machines", "Machines", Icons.Material.Filled.CoffeeMaker),
+        new("/shops", "Shops", Icons.Material.Filled.Storefront),
+        new("/stats", "Stats", Icons.Material.Filled.BarChart)
+    };
+
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+
+    private bool IsActive(string path)
+    {
+        var current = "/" + Nav.ToBaseRelativePath(Nav.Uri).TrimEnd('/');
+        if (path == "/coffees" && (current == "/" || current == "")) return true;
+        return current.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+    }
+}

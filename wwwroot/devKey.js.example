@@ -1,0 +1,25 @@
+// LOCAL DEV ONLY — pre-fills your Google Maps Platform API key into localStorage
+// so you don't have to paste it via the Settings page on every fresh browser/profile.
+//
+// Usage:
+//   1. Copy this file to wwwroot/devKey.js (the .js version is gitignored)
+//   2. Replace the placeholder below with your real key
+//   3. Reload the app — the key is injected into localStorage before shopSearch.js runs
+//
+// To stop using the dev key:
+//   - Delete wwwroot/devKey.js, OR
+//   - Remove the key via the Settings page ("Effacer"), OR
+//   - DevTools → Application → Local Storage → remove "coffee.google.apiKey"
+//
+// SECURITY:
+//   - Restrict the key by HTTP referrer in Google Cloud Console (https://console.cloud.google.com)
+//     before testing on a public URL. For localhost dev, "http://localhost:*" is enough.
+//   - This file is in .gitignore — make sure it stays out of git history.
+
+(function () {
+  const KEY = 'PASTE_YOUR_GOOGLE_API_KEY_HERE';
+  if (KEY && KEY !== 'PASTE_YOUR_GOOGLE_API_KEY_HERE'
+      && !localStorage.getItem('coffee.google.apiKey')) {
+    localStorage.setItem('coffee.google.apiKey', KEY);
+  }
+})();

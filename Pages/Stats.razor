@@ -1,0 +1,228 @@
+@page "/stats"
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+
+<PageTitle>Stats</PageTitle>
+
+<PageHeader Title="Stats">
+    <Action>
+        <MudIconButton Icon="@Icons.Material.Filled.Settings" Size="Size.Medium"
+                       OnClick="@(() => Nav.NavigateTo("/settings"))"
+                       aria-label="Réglages" />
+    </Action>
+</PageHeader>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+}
+else
+{
+    <MudStack Spacing="3">
+        <MudGrid Spacing="2">
+            <MudItem xs="4"><Counter Icon="@Icons.Material.Filled.Coffee" Label="Cafés" Value="@_coffees.Count" /></MudItem>
+            <MudItem xs="4"><Counter Icon="@Icons.Material.Filled.LocalCafe" Label="Brews" Value="@_brews.Count" /></MudItem>
+            <MudItem xs="4"><Counter Icon="@Icons.Material.Filled.Storefront" Label="Shops" Value="@_visits.Count" /></MudItem>
+        </MudGrid>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> Activité
+            </MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="6">
+                    <MudText Typo="Typo.h4">@_brewsLast7</MudText>
+                    <MudText Class="mud-text-secondary">brews · 7j</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText Typo="Typo.h4">@_brewsLast30</MudText>
+                    <MudText Class="mud-text-secondary">brews · 30j</MudText>
+                </MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 mb-1 d-block">13 dernières semaines</MudText>
+            <HeatmapCalendar Counts="@_dailyBrews" WeeksBack="13" />
+        </MudPaper>
+
+        @if (_budget is not null)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Euro" Size="Size.Small" /> Budget
+                </MudText>
+                <DetailRow Label="Total dépensé en sacs" Value="@_budget.TotalCoffees" />
+                @if (_budget.HomeCupCount > 0 && !string.IsNullOrEmpty(_budget.AvgHomeCup))
+                {
+                    <DetailRow Label="@($"Coût moyen / tasse maison ({_budget.HomeCupCount})")" Value="@_budget.AvgHomeCup" />
+                }
+                @if (!string.IsNullOrEmpty(_budget.TotalShops))
+                {
+                    <DetailRow Label="Total dépensé en boutique" Value="@_budget.TotalShops" />
+                }
+            </MudPaper>
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <DetailRow Label="Méthode favorite" Value="@_topMethodLabel" />
+            <DetailRow Label="Origine la plus achetée" Value="@_topOriginLabel" />
+            <div class="detail-row">
+                <span class="detail-label">Note moyenne brews</span>
+                <span class="d-flex align-center" style="gap:8px;">
+                    <StarRating Value="@((int)Math.Round(_avgBrewRating))" ReadOnly="true" Size="Size.Small" />
+                    <span class="mud-text-secondary" style="font-size:14px;">@(_avgBrewRating > 0 ? _avgBrewRating.ToString("0.0") : "—")</span>
+                </span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Note moyenne shops</span>
+                <span class="d-flex align-center" style="gap:8px;">
+                    <StarRating Value="@((int)Math.Round(_avgShopRating))" ReadOnly="true" Size="Size.Small" />
+                    <span class="mud-text-secondary" style="font-size:14px;">@(_avgShopRating > 0 ? _avgShopRating.ToString("0.0") : "—")</span>
+                </span>
+            </div>
+        </MudPaper>
+
+        @if (_topCoffee is not null)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.overline" Class="mud-text-secondary">Meilleur café</MudText>
+                <MudText Class="mt-1" Style="font-weight:600;">@_topCoffee.Coffee.Name</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@_topCoffee.Coffee.Roaster</MudText>
+                <div class="d-flex align-center mt-2" style="gap:8px;">
+                    <StarRating Value="@((int)Math.Round(_topCoffee.Avg))" ReadOnly="true" Size="Size.Small" />
+                    <span class="mud-text-secondary" style="font-size:12px;">@_topCoffee.Avg.ToString("0.0") sur @_topCoffee.Count brews</span>
+                </div>
+            </MudPaper>
+        }
+
+@* class type defined below in @code *@
+
+        @if (_methodCounts.Count > 1)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.overline" Class="mud-text-secondary mb-3">Répartition par méthode</MudText>
+                <MudStack Spacing="2">
+                    @foreach (var kv in _methodCounts.OrderByDescending(x => x.Value))
+                    {
+                        var pct = (double)kv.Value / _brews.Count * 100;
+                        <div>
+                            <div class="d-flex justify-space-between" style="font-size:14px;">
+                                <span style="color:#5a3a1d;">@kv.Key.GetLabel()</span>
+                                <span class="mud-text-secondary">@kv.Value</span>
+                            </div>
+                            <MudProgressLinear Value="@pct" Color="Color.Primary" Class="mt-1" Style="height:6px; border-radius:3px;" />
+                        </div>
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+    </MudStack>
+}
+
+@code {
+    private bool _loading = true;
+    private List<Coffee> _coffees = new();
+    private List<Brew> _brews = new();
+    private List<CoffeeShopVisit> _visits = new();
+    private int _brewsLast7;
+    private int _brewsLast30;
+    private string _topMethodLabel = "—";
+    private string _topOriginLabel = "—";
+    private double _avgBrewRating;
+    private double _avgShopRating;
+    private TopCoffee? _topCoffee;
+    private record TopCoffee(Coffee Coffee, double Avg, int Count);
+
+    private BudgetSummary? _budget;
+    private record BudgetSummary(string TotalCoffees, string? AvgHomeCup, int HomeCupCount, string? TotalShops);
+
+    private Dictionary<DateOnly, int> _dailyBrews = new();
+    private Dictionary<BrewMethod, int> _methodCounts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _coffees = await Db.Coffees.ToCollection().ToList();
+        _brews = await Db.Brews.ToCollection().ToList();
+        _visits = await Db.ShopVisits.ToCollection().ToList();
+
+        var now = DateTime.Now;
+        _brewsLast7 = _brews.Count(b => b.Date >= now.AddDays(-7));
+        _brewsLast30 = _brews.Count(b => b.Date >= now.AddDays(-30));
+
+        _dailyBrews = _brews
+            .GroupBy(b => DateOnly.FromDateTime(b.Date))
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        _methodCounts = _brews.GroupBy(b => b.Method).ToDictionary(g => g.Key, g => g.Count());
+        var topMethod = _methodCounts.OrderByDescending(x => x.Value).FirstOrDefault();
+        if (_methodCounts.Count > 0)
+            _topMethodLabel = $"{topMethod.Key.GetLabel()} ({topMethod.Value})";
+
+        var byCountry = _coffees
+            .Where(c => !string.IsNullOrEmpty(c.Country))
+            .GroupBy(c => c.Country!)
+            .ToDictionary(g => g.Key, g => g.Count());
+        var topOrigin = byCountry.OrderByDescending(x => x.Value).FirstOrDefault();
+        if (byCountry.Count > 0)
+            _topOriginLabel = $"{topOrigin.Key} ({topOrigin.Value})";
+
+        if (_brews.Count > 0)
+            _avgBrewRating = _brews.Average(b => b.Rating);
+        if (_visits.Count > 0)
+            _avgShopRating = _visits.Average(v => v.Rating);
+
+        var byCoffee = _brews
+            .GroupBy(b => b.CoffeeId)
+            .Where(g => g.Count() >= 2)
+            .Select(g => new { CoffeeId = g.Key, Avg = g.Average(b => (double)b.Rating), Count = g.Count() })
+            .OrderByDescending(x => x.Avg)
+            .FirstOrDefault();
+        if (byCoffee is not null)
+        {
+            var c = _coffees.FirstOrDefault(x => x.Id == byCoffee.CoffeeId);
+            if (c is not null) _topCoffee = new TopCoffee(c, byCoffee.Avg, byCoffee.Count);
+        }
+
+        _budget = ComputeBudget();
+
+        _loading = false;
+    }
+
+    private BudgetSummary? ComputeBudget()
+    {
+        // Pick the most common currency among coffees with prices.
+        var pricedCoffees = _coffees.Where(c => c.Price is not null).ToList();
+        var pricedShops = _visits.Where(v => v.Price is not null).ToList();
+        if (pricedCoffees.Count == 0 && pricedShops.Count == 0) return null;
+
+        var currencies = pricedCoffees.Select(c => c.Currency ?? "EUR")
+            .Concat(pricedShops.Select(v => v.Currency ?? "EUR"));
+        var currency = currencies
+            .GroupBy(c => c)
+            .OrderByDescending(g => g.Count())
+            .First().Key;
+
+        var totalCoffees = pricedCoffees.Sum(c => c.Price!.Value);
+        var totalShops = pricedShops.Sum(v => v.Price!.Value);
+
+        // Cost per home cup: for each brew with DoseG referencing a coffee with Price+Weight,
+        // cost = (price/weight) * dose
+        decimal totalHomeCost = 0m;
+        int homeCupCount = 0;
+        var byId = _coffees.ToDictionary(c => c.Id, c => c);
+        foreach (var b in _brews)
+        {
+            if (b.DoseG is not decimal dose) continue;
+            if (!byId.TryGetValue(b.CoffeeId, out var c)) continue;
+            if (c.Price is not decimal p || c.WeightGrams is not int w || w <= 0) continue;
+            totalHomeCost += (p / w) * dose;
+            homeCupCount++;
+        }
+
+        return new BudgetSummary(
+            TotalCoffees: Format.Price(totalCoffees, currency),
+            AvgHomeCup: homeCupCount > 0 ? Format.Price(Math.Round(totalHomeCost / homeCupCount, 2), currency) : null,
+            HomeCupCount: homeCupCount,
+            TotalShops: pricedShops.Count > 0 ? Format.Price(totalShops, currency) : null
+        );
+    }
+}

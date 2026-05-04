@@ -1,0 +1,101 @@
+@page "/machines"
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+
+<PageTitle>Machines</PageTitle>
+
+<PageHeader Title="Machines" Subtitle="@($"{_machines.Count} machine{(_machines.Count > 1 ? "s" : "")}")">
+    <Action>
+        <MudIconButton Icon="@Icons.Material.Filled.Add"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Size="Size.Medium"
+                       OnClick="@(() => Nav.NavigateTo("/machines/new"))" />
+    </Action>
+</PageHeader>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+}
+else if (_machines.Count == 0)
+{
+    <MudPaper Class="pa-8 d-flex flex-column align-center" Elevation="0">
+        <MudIcon Icon="@Icons.Material.Filled.CoffeeMaker" Size="Size.Large" Class="mb-3" Style="color:#a06d3b" />
+        <MudText Typo="Typo.h6">Aucune machine</MudText>
+        <MudText Class="mb-4 mud-text-secondary">Ajoute ton matos : machine espresso, moulin, bouilloire…</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@(() => Nav.NavigateTo("/machines/new"))">Ajouter une machine</MudButton>
+    </MudPaper>
+}
+else
+{
+    <MudStack Spacing="2">
+        @foreach (var m in _machines)
+        {
+            <MudPaper Class="pa-3 machine-card" Elevation="0"
+                      @onclick="@(() => Nav.NavigateTo($"/machines/{m.Id}/edit"))">
+                <div class="d-flex" style="gap:12px;">
+                    @if (!string.IsNullOrEmpty(m.PhotoDataUrl))
+                    {
+                        <img src="@m.PhotoDataUrl" alt="" class="thumb-md" />
+                    }
+                    else
+                    {
+                        <div class="thumb-md thumb-placeholder">
+                            <MudIcon Icon="@TypeIcon(m.Type)" />
+                        </div>
+                    }
+                    <div style="flex:1; min-width:0;">
+                        <div class="d-flex align-center justify-space-between" style="gap:8px;">
+                            <MudText Style="font-weight:600;" Class="text-truncate">@m.Name</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Filled">@m.Type.GetLabel()</MudChip>
+                        </div>
+                        @if (!string.IsNullOrEmpty(m.Brand) || !string.IsNullOrEmpty(m.Model))
+                        {
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary text-truncate">
+                                @(string.Join(" · ", new[] { m.Brand, m.Model }.Where(s => !string.IsNullOrEmpty(s))))
+                            </MudText>
+                        }
+                    </div>
+                </div>
+            </MudPaper>
+        }
+    </MudStack>
+}
+
+<style>
+    .machine-card { border: 1px solid #f0e7d8; cursor: pointer; transition: transform .08s; }
+    .machine-card:active { transform: scale(.99); }
+    .thumb-md { width: 56px; height: 56px; border-radius: 12px; flex-shrink: 0; object-fit: cover; }
+    .thumb-placeholder { background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b; }
+</style>
+
+@code {
+    private bool _loading = true;
+    private List<Machine> _machines = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _machines = await Db.Machines.OrderBy(nameof(Machine.CreatedAt)).Reverse().ToList();
+        _loading = false;
+    }
+
+    private static string TypeIcon(MachineType t) => t switch
+    {
+        MachineType.Espresso => Icons.Material.Filled.CoffeeMaker,
+        MachineType.Moka => Icons.Material.Filled.CoffeeMaker,
+        MachineType.V60 => Icons.Material.Filled.FilterAlt,
+        MachineType.Chemex => Icons.Material.Filled.FilterAlt,
+        MachineType.Kalita => Icons.Material.Filled.FilterAlt,
+        MachineType.Origami => Icons.Material.Filled.FilterAlt,
+        MachineType.AeroPress => Icons.Material.Filled.LocalCafe,
+        MachineType.FrenchPress => Icons.Material.Filled.LocalCafe,
+        MachineType.ColdBrew => Icons.Material.Filled.AcUnit,
+        MachineType.Grinder => Icons.Material.Filled.Settings,
+        MachineType.Kettle => Icons.Material.Filled.LocalDrink,
+        MachineType.Scale => Icons.Material.Filled.Scale,
+        _ => Icons.Material.Filled.Build
+    };
+}

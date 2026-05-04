@@ -1,0 +1,425 @@
+@page "/coffees/{Id:int}"
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_coffee?.Name ?? "Café")</PageTitle>
+
+<PageHeader Title="@(_coffee?.Name ?? "Café")"
+            Subtitle="@(_coffee?.Roaster ?? string.Empty)"
+            Back="true" BackUrl="/coffees">
+    <Action>
+        @if (_coffee is not null)
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Medium"
+                           OnClick="@(() => Nav.NavigateTo($"/coffees/{Id}/edit"))" />
+        }
+    </Action>
+</PageHeader>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+}
+else if (_coffee is null)
+{
+    <MudText Class="pa-4">Café introuvable.</MudText>
+}
+else
+{
+    <MudStack Spacing="3">
+        @if (!string.IsNullOrEmpty(_coffee.PhotoDataUrl))
+        {
+            <img src="@_coffee.PhotoDataUrl" alt="" class="hero-photo" />
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            @if (_coffee.IsBlend)
+            {
+                <DetailRow Label="Type" Value="Blend" />
+                @if (!string.IsNullOrEmpty(_coffee.Composition))
+                {
+                    <DetailRow Label="Composition" Value="@_coffee.Composition" />
+                }
+            }
+            else
+            {
+                <DetailRow Label="Origine" Value="@OriginLine()" />
+                @if (!string.IsNullOrEmpty(_coffee.Producer))
+                {
+                    <DetailRow Label="Producteur" Value="@_coffee.Producer" />
+                }
+                @if (!string.IsNullOrEmpty(_coffee.Altitude))
+                {
+                    <DetailRow Label="Altitude" Value="@_coffee.Altitude" />
+                }
+                @if (!string.IsNullOrEmpty(_coffee.Variety))
+                {
+                    <DetailRow Label="Variété" Value="@_coffee.Variety" />
+                }
+            }
+            <DetailRow Label="Process" Value="@_coffee.Process.GetLabel()" />
+            @if (!string.IsNullOrEmpty(_coffee.ProcessNotes))
+            {
+                <DetailRow Label="Notes process" Value="@_coffee.ProcessNotes" />
+            }
+            <DetailRow Label="Caféine" Value="@(_coffee.IsDecaf ? "Décaféiné" : "Normal")" />
+            @if (_coffee.RoastLevel is not null)
+            {
+                <DetailRow Label="Torréfaction" Value="@_coffee.RoastLevel.Value.GetLabel()" />
+            }
+            @if (_coffee.RoastDate is not null)
+            {
+                var days = Format.DaysSince(_coffee.RoastDate);
+                <DetailRow Label="Date de torréfaction"
+                           Value="@($"{Format.Date(_coffee.RoastDate)}{(days is null ? "" : $" · il y a {days}j")}")" />
+            }
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <DetailRow Label="Type" Value="@(_coffee.IsOwned ? "Possédé" : "Dégusté en boutique")" />
+            @if (_coffee.IsOwned)
+            {
+                <DetailRow Label="Achat" Value="@Format.Date(_coffee.PurchaseDate)" />
+                @if (_coffee.WeightGrams is not null)
+                {
+                    <DetailRow Label="Poids" Value="@($"{_coffee.WeightGrams} g")" />
+                }
+                @if (_coffee.Price is not null)
+                {
+                    <DetailRow Label="Prix" Value="@Format.Price(_coffee.Price, _coffee.Currency)" />
+                }
+                @if (CostPerGram is decimal cpgVal)
+                {
+                    <DetailRow Label="Coût / g" Value="@($"{cpgVal.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)} {_coffee.Currency}/g")" />
+                }
+                @if (AvgCostPerCup is decimal accVal)
+                {
+                    <DetailRow Label="Coût moyen / tasse" Value="@Format.Price(accVal, _coffee.Currency)" />
+                }
+                <DetailRow Label="Statut"
+                           Value="@(_coffee.FinishedAt is null ? "En cours" : $"Terminé le {Format.DateTimeShort(_coffee.FinishedAt)}")" />
+            }
+        </MudPaper>
+
+        @{ var deg = Degassing.Compute(_coffee.RoastDate); }
+        @if (deg is not null && _coffee.FinishedAt is null)
+        {
+            var pct = Math.Min(100.0, deg.Days * 100.0 / Degassing.MaxDays);
+            <MudPaper Class="pa-4" Elevation="0">
+                <div class="d-flex align-baseline justify-space-between mb-2">
+                    <MudText Typo="Typo.overline" Class="mud-text-secondary">Dégazage</MudText>
+                    <MudText Style="font-weight:600;">
+                        @deg.Days j
+                        <span class="mud-text-secondary" style="font-weight:400; font-size:13px;"> · @deg.ShortLabel</span>
+                    </MudText>
+                </div>
+                <div class="degas-track">
+                    <div class="degas-zone z-fresh"></div>
+                    <div class="degas-zone z-filter"></div>
+                    <div class="degas-zone z-optimal"></div>
+                    <div class="degas-zone z-decline"></div>
+                    <div class="degas-zone z-past"></div>
+                    <div class="degas-marker" style="@($"left: {pct.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}%;")"></div>
+                </div>
+                <div class="degas-legend">
+                    <span>0j</span>
+                    <span>7j</span>
+                    <span>21j</span>
+                    <span>35j</span>
+                    <span>42j+</span>
+                </div>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">@deg.Label</MudText>
+            </MudPaper>
+        }
+
+        @if (_coffee.WeightGrams is int totalGrams && _coffee.FinishedAt is null)
+        {
+            var used = _brews.Sum(b => b.DoseG ?? 0m);
+            var remaining = totalGrams - used;
+            var pct = totalGrams > 0 ? (double)Math.Max(0m, remaining) / totalGrams * 100 : 0;
+            var color = remaining <= 30m ? Color.Error : (remaining <= 60m ? Color.Warning : Color.Primary);
+            <MudPaper Class="pa-4" Elevation="0">
+                <div class="d-flex justify-space-between align-baseline mb-2">
+                    <MudText Typo="Typo.overline" Class="mud-text-secondary">Stock restant</MudText>
+                    <MudText Style="font-weight:600;">
+                        @remaining.ToString("0.#") g
+                        <span class="mud-text-secondary" style="font-weight:400; font-size:13px;"> / @totalGrams g</span>
+                    </MudText>
+                </div>
+                <MudProgressLinear Value="@pct" Color="@color" Style="height:8px; border-radius:4px;" />
+                @if (remaining <= 0m)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-2">Sac vide d'après les brews enregistrés.</MudText>
+                }
+                else if (remaining <= 30m)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-2">Bientôt fini — pense à racheter.</MudText>
+                }
+            </MudPaper>
+        }
+
+        @if (!string.IsNullOrEmpty(_coffee.TastingNotes))
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.overline" Class="mud-text-secondary">Notes du torréfacteur</MudText>
+                <MudText Class="mt-1" Style="white-space: pre-wrap;">@_coffee.TastingNotes</MudText>
+            </MudPaper>
+        }
+
+        @if (_coffee.IsOwned)
+        {
+        <MudPaper Class="pa-4" Elevation="0">
+            <div class="d-flex align-center justify-space-between mb-3">
+                <MudText Typo="Typo.h6">Brews (@_brews.Count)</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           Size="Size.Small"
+                           OnClick="@(() => Nav.NavigateTo($"/brews/new?coffeeId={Id}"))">Ajouter</MudButton>
+            </div>
+            @if (_brews.Count > 0)
+            {
+                <div class="d-flex align-center mb-3" style="gap:8px;">
+                    <span class="mud-text-secondary" style="font-size:14px;">Moyenne :</span>
+                    <StarRating Value="@((int)Math.Round(_brews.Average(b => b.Rating)))" ReadOnly="true" Size="Size.Small" />
+                    <span class="mud-text-secondary" style="font-size:14px;">(@_brews.Average(b => b.Rating).ToString("0.0"))</span>
+                </div>
+            }
+            @if (_chartSeries is not null)
+            {
+                <div class="mb-3">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">Évolution du score (chronologique)</MudText>
+                    <MudChart T="double"
+                              ChartType="ChartType.Line"
+                              ChartSeries="@_chartSeries"
+                              ChartLabels="@_chartLabels"
+                              ChartOptions="@_chartOptions"
+                              Width="100%" Height="160px" />
+                </div>
+            }
+            @if (_brews.Count == 0)
+            {
+                <MudText Class="mud-text-secondary">Aucun brew encore. Lance-toi !</MudText>
+            }
+            else
+            {
+                <MudList T="Brew" Class="pa-0">
+                    @foreach (var b in _brews)
+                    {
+                        <MudListItem T="Brew" OnClick="@(() => Nav.NavigateTo($"/brews/{b.Id}/edit"))" Class="px-2">
+                            <div class="d-flex align-center" style="gap:12px;">
+                                <div class="thumb-sm thumb-placeholder">
+                                    <MudIcon Icon="@Icons.Material.Filled.LocalCafe" Size="Size.Small" />
+                                </div>
+                                <div style="flex:1; min-width:0;">
+                                    <div class="d-flex align-center justify-space-between">
+                                        <div class="d-flex align-center" style="gap:6px;">
+                                            <MudText Style="font-weight:500;">@b.Method.GetLabel()</MudText>
+                                            @if (b.IsFavorite)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.Favorite" Size="Size.Small" Style="color:#dc2626;" />
+                                            }
+                                        </div>
+                                        <StarRating Value="@b.Rating" ReadOnly="true" Size="Size.Small" />
+                                    </div>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        @Format.DateTimeShort(b.Date)
+                                        @{ var ratio = string.IsNullOrEmpty(b.Ratio) ? Format.Ratio(b.DoseG, b.YieldG) : b.Ratio; }
+                                        @if (!string.IsNullOrEmpty(ratio)) { <span> · @ratio</span> }
+                                        @if (b.DoseG is not null) { <span> · @b.DoseG g</span> }
+                                    </MudText>
+                                </div>
+                                <span @onclick="() => GoDuplicate(b.Id)" @onclick:stopPropagation="true">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Replay" Size="Size.Small"
+                                                   Color="Color.Primary"
+                                                   aria-label="Refaire ce brew" />
+                                </span>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        </MudPaper>
+        }
+
+        <MudGrid Spacing="2">
+            @if (_coffee.IsOwned)
+            {
+                <MudItem xs="6">
+                    <MudButton Variant="Variant.Filled" Color="Color.Default" FullWidth="true"
+                               StartIcon="@(_coffee.FinishedAt is null ? Icons.Material.Filled.Check : Icons.Material.Filled.Refresh)"
+                               OnClick="ToggleFinishedAsync">
+                        @(_coffee.FinishedAt is null ? "Marquer terminé" : "Rouvrir")
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="DeleteAsync">Supprimer</MudButton>
+                </MudItem>
+            }
+            else
+            {
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="DeleteAsync">Supprimer</MudButton>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudStack>
+}
+
+<style>
+    .hero-photo {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        border-radius: 18px;
+    }
+    .thumb-sm {
+        width: 36px; height: 36px; border-radius: 10px;
+    }
+    .thumb-placeholder {
+        background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b;
+    }
+    .degas-track {
+        position: relative;
+        height: 12px;
+        border-radius: 6px;
+        overflow: hidden;
+        display: flex;
+    }
+    .degas-zone { height: 100%; }
+    .z-fresh { width: 16.67%; background: #fee2e2; }   /* 0-7 days  (~7/42) */
+    .z-filter { width: 0%; }
+    .z-optimal { width: 33.33%; background: #d1fae5; } /* 7-21 days (~14/42) */
+    .z-decline { width: 33.33%; background: #fef3c7; } /* 21-35     (~14/42) */
+    .z-past { width: 16.67%; background: #fee2e2; }    /* 35-42     (~7/42) */
+    .degas-marker {
+        position: absolute;
+        top: -3px;
+        width: 4px;
+        height: 18px;
+        background: #3b2418;
+        border-radius: 2px;
+        transform: translateX(-50%);
+        box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .degas-legend {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: #8a7560;
+        margin-top: 4px;
+        font-variant-numeric: tabular-nums;
+    }
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _loading = true;
+    private Coffee? _coffee;
+    private List<Brew> _brews = new();
+    private List<ChartSeries<double>>? _chartSeries;
+    private string[] _chartLabels = Array.Empty<string>();
+    private readonly LineChartOptions _chartOptions = new()
+    {
+        YAxisTicks = 1,
+        YAxisSuggestedMax = 5,
+        ClampToZero = true,
+        LineStrokeWidth = 2.5,
+        ShowDataMarkers = true,
+        ShowLegend = false,
+        InterpolationOption = InterpolationOption.NaturalSpline,
+        ChartPalette = new[] { "#3b2418" }
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _coffee = await Db.Coffees.Get(Id);
+        if (_coffee is not null)
+        {
+            var raw = await Db.Brews.Where(nameof(Brew.CoffeeId)).IsEqual(Id).ToList();
+            _brews = raw.OrderByDescending(b => b.Date).ToList();
+
+            if (_brews.Count >= 3)
+            {
+                var ordered = _brews.OrderBy(b => b.Date).ToList();
+                _chartSeries = new List<ChartSeries<double>>
+                {
+                    new()
+                    {
+                        Name = "Score",
+                        Data = new ChartData<double>(ordered.Select(b => (double)b.Rating).ToList())
+                    }
+                };
+                _chartLabels = ordered
+                    .Select((_, i) => $"#{i + 1}")
+                    .ToArray();
+            }
+            else
+            {
+                _chartSeries = null;
+            }
+        }
+        _loading = false;
+    }
+
+    private void GoDuplicate(int brewId) => Nav.NavigateTo($"/brews/new?fromBrewId={brewId}");
+
+    private decimal? CostPerGram =>
+        _coffee?.Price is decimal price && _coffee?.WeightGrams is int weight && weight > 0
+            ? Math.Round(price / weight, 4) : null;
+
+    private decimal? AvgCostPerCup
+    {
+        get
+        {
+            if (CostPerGram is not decimal cpg) return null;
+            var dosed = _brews.Where(b => b.DoseG is decimal d && d > 0).ToList();
+            if (dosed.Count == 0) return null;
+            var avgDose = dosed.Average(b => b.DoseG!.Value);
+            return Math.Round(cpg * avgDose, 2);
+        }
+    }
+
+    private string OriginLine()
+    {
+        var parts = new[] { _coffee?.Country, _coffee?.Region, _coffee?.Farm }
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToArray();
+        return parts.Length == 0 ? "—" : string.Join(" · ", parts);
+    }
+
+    private async Task ToggleFinishedAsync()
+    {
+        if (_coffee is null) return;
+        _coffee.FinishedAt = _coffee.FinishedAt is null ? DateTime.UtcNow : null;
+        _coffee.UpdatedAt = DateTime.UtcNow;
+        await Db.Coffees.Put(_coffee);
+        Snackbar.Add(_coffee.FinishedAt is null ? "Café rouvert" : "Café marqué terminé", Severity.Success);
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_coffee is null) return;
+        var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
+        {
+            Title = "Supprimer ?",
+            Message = $"Supprimer \"{_coffee.Name}\" ainsi que tous les brews associés ?",
+            YesText = "Supprimer",
+            CancelText = "Annuler"
+        });
+        if (ok != true) return;
+
+        var related = await Db.Brews.Where(nameof(Brew.CoffeeId)).IsEqual(Id).PrimaryKeys();
+        foreach (var bId in related) await Db.Brews.Delete(bId);
+        await Db.Coffees.Delete(Id);
+        Snackbar.Add("Café supprimé", Severity.Info);
+        Nav.NavigateTo("/coffees");
+    }
+}

@@ -1,0 +1,221 @@
+@page "/shops"
+@implements IAsyncDisposable
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Coffee shops</PageTitle>
+
+<PageHeader Title="Coffee shops" Subtitle="@($"{_visits.Count} visite{(_visits.Count > 1 ? "s" : "")}")">
+    <Action>
+        <MudIconButton Icon="@(_mapMode ? Icons.Material.Filled.ViewList : Icons.Material.Filled.Map)"
+                       Size="Size.Medium"
+                       OnClick="@(() => _mapMode = !_mapMode)"
+                       aria-label="@(_mapMode ? "Vue liste" : "Vue carte")" />
+        <MudIconButton Icon="@Icons.Material.Filled.Add"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Size="Size.Medium"
+                       OnClick="@(() => Nav.NavigateTo("/shops/new"))" />
+    </Action>
+</PageHeader>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+}
+else
+{
+    <MudTextField @bind-Value="_search" Placeholder="Rechercher (nom, ville, boisson…)"
+                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Clearable="true" Immediate="true" DebounceInterval="150" />
+
+    var filtered = Filter(_visits);
+    var hasSearch = !string.IsNullOrWhiteSpace(_search);
+
+    var withCoords = filtered.Count(v => v.Latitude is not null && v.Longitude is not null);
+
+    if (_mapMode)
+    {
+        <div id="@MapElementId" class="shops-map"></div>
+        if (filtered.Count == 0)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block text-center">
+                Aucune visite à afficher.
+            </MudText>
+        }
+        else if (withCoords == 0)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block text-center">
+                Aucune des @filtered.Count visite(s) n'a de coordonnées GPS — utilise « Rechercher en ligne » sur le formulaire pour les géolocaliser.
+            </MudText>
+        }
+        else if (withCoords < filtered.Count)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block text-center">
+                @withCoords sur @filtered.Count visites localisées sur la carte (les autres n'ont pas de coordonnées).
+            </MudText>
+        }
+    }
+    else if (filtered.Count == 0)
+    {
+        <MudPaper Class="pa-8 d-flex flex-column align-center" Elevation="0">
+            <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Large" Class="mb-3" Style="color:#a06d3b" />
+            @if (hasSearch)
+            {
+                <MudText Typo="Typo.h6">Aucun résultat</MudText>
+                <MudText Class="mud-text-secondary">pour « @_search »</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.h6">Aucun shop visité</MudText>
+                <MudText Class="mb-4 mud-text-secondary">Note les cafés que tu bois en boutique.</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@(() => Nav.NavigateTo("/shops/new"))">Ajouter une visite</MudButton>
+            }
+        </MudPaper>
+    }
+    else
+    {
+    <MudStack Spacing="2">
+        @foreach (var v in filtered)
+        {
+            <MudPaper Class="pa-3 shop-card" Elevation="0"
+                      @onclick="@(() => Nav.NavigateTo($"/shops/{v.Id}/edit"))">
+                <div class="d-flex" style="gap:12px;">
+                    @if (!string.IsNullOrEmpty(v.PhotoDataUrl))
+                    {
+                        <img src="@v.PhotoDataUrl" alt="" class="thumb-md" />
+                    }
+                    else
+                    {
+                        <div class="thumb-md thumb-placeholder">
+                            <MudIcon Icon="@Icons.Material.Filled.Storefront" />
+                        </div>
+                    }
+                    <div style="flex:1; min-width:0;">
+                        <div class="d-flex align-start justify-space-between" style="gap:8px;">
+                            <MudText Style="font-weight:600;" Class="text-truncate">@v.ShopName</MudText>
+                            <StarRating Value="@v.Rating" ReadOnly="true" Size="Size.Small" />
+                        </div>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary text-truncate">
+                            @v.DrinkType@(string.IsNullOrEmpty(CoffeeLabel(v)) ? "" : $" · {CoffeeLabel(v)}")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
+                            @if (!string.IsNullOrEmpty(v.City) || !string.IsNullOrEmpty(v.Country))
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />
+                                <span>@(string.Join(", ", new[] { v.City, v.Country }.Where(s => !string.IsNullOrEmpty(s))))</span>
+                                <span> · </span>
+                            }
+                            <span>@Format.Date(v.Date)</span>
+                        </MudText>
+                    </div>
+                </div>
+            </MudPaper>
+        }
+    </MudStack>
+    }
+}
+
+<style>
+    .shop-card { border: 1px solid #f0e7d8; cursor: pointer; transition: transform .08s; }
+    .shop-card:active { transform: scale(.99); }
+    .thumb-md { width: 56px; height: 56px; border-radius: 12px; flex-shrink: 0; object-fit: cover; }
+    .thumb-placeholder { background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b; }
+    .shops-map {
+        height: calc(100vh - 260px);
+        min-height: 320px;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid #f0e7d8;
+    }
+    .shops-map .leaflet-container { font-family: inherit; }
+</style>
+
+@code {
+    private const string MapElementId = "shops-map";
+
+    private bool _loading = true;
+    private List<CoffeeShopVisit> _visits = new();
+    private Dictionary<int, Coffee> _coffeesById = new();
+    private string _search = string.Empty;
+    private bool _mapMode;
+    private bool _mapInitialized;
+
+    private string? CoffeeLabel(CoffeeShopVisit v)
+    {
+        if (v.CoffeeId is int cid && _coffeesById.TryGetValue(cid, out var c))
+            return c.Name;
+        return v.CoffeeOrigin;
+    }
+
+    private List<CoffeeShopVisit> Filter(List<CoffeeShopVisit> list)
+    {
+        if (string.IsNullOrWhiteSpace(_search)) return list;
+        var q = _search.Trim();
+        var sc = StringComparison.OrdinalIgnoreCase;
+        return list.Where(v =>
+            v.ShopName.Contains(q, sc)
+            || (v.City?.Contains(q, sc) ?? false)
+            || (v.Country?.Contains(q, sc) ?? false)
+            || v.DrinkType.Contains(q, sc)
+            || (CoffeeLabel(v)?.Contains(q, sc) ?? false)
+            || (v.Notes?.Contains(q, sc) ?? false)
+        ).ToList();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _visits = await Db.ShopVisits.OrderBy(nameof(CoffeeShopVisit.Date)).Reverse().ToList();
+        var coffees = await Db.Coffees.ToCollection().ToList();
+        _coffeesById = coffees.ToDictionary(c => c.Id, c => c);
+        _loading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_loading) return;
+
+        if (_mapMode)
+        {
+            var markers = Filter(_visits).Select(v => new
+            {
+                id = v.Id,
+                shopName = v.ShopName,
+                drinkType = v.DrinkType,
+                coffeeOrigin = CoffeeLabel(v),
+                rating = v.Rating,
+                latitude = v.Latitude,
+                longitude = v.Longitude,
+                dateLabel = Format.Date(v.Date)
+            }).ToArray();
+
+            if (!_mapInitialized)
+            {
+                await JS.InvokeVoidAsync("coffeeMap.init", MapElementId, markers);
+                _mapInitialized = true;
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("coffeeMap.update", MapElementId, markers);
+            }
+        }
+        else if (_mapInitialized)
+        {
+            try { await JS.InvokeVoidAsync("coffeeMap.destroy", MapElementId); } catch { }
+            _mapInitialized = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_mapInitialized)
+        {
+            try { await JS.InvokeVoidAsync("coffeeMap.destroy", MapElementId); } catch { }
+            _mapInitialized = false;
+        }
+    }
+}

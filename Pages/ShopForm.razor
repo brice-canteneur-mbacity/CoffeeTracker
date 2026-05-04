@@ -1,0 +1,403 @@
+@page "/shops/new"
+@page "/shops/{Id:int}/edit"
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject IJSRuntime JS
+@inject PlaceSearchService PlaceSearch
+
+<PageTitle>@(IsEdit ? "Modifier la visite" : "Nouvelle visite")</PageTitle>
+
+<PageHeader Title="@(IsEdit ? "Modifier la visite" : "Nouvelle visite")" Back="true" BackUrl="/shops" />
+
+<EditForm Model="_model" OnValidSubmit="SaveAsync">
+    <DataAnnotationsValidator />
+
+    <MudStack Spacing="4">
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Photo</MudText>
+            <div class="d-flex align-center" style="gap:12px;">
+                @if (!string.IsNullOrEmpty(_model.PhotoDataUrl))
+                {
+                    <img src="@_model.PhotoDataUrl" class="photo-preview" alt="" />
+                }
+                else
+                {
+                    <div class="photo-preview placeholder">
+                        <MudIcon Icon="@Icons.Material.Filled.PhotoCamera" />
+                    </div>
+                }
+                <MudStack Spacing="1">
+                    <InputFile id="shopPhotoInput" OnChange="OnPhotoSelectedAsync" accept="image/*" capture="environment" style="display:none;" />
+                    <label for="shopPhotoInput" class="upload-button">
+                        <MudIcon Icon="@Icons.Material.Filled.PhotoCamera" Size="Size.Small" />
+                        <span>@(string.IsNullOrEmpty(_model.PhotoDataUrl) ? "Ajouter" : "Changer")</span>
+                    </label>
+                    @if (!string.IsNullOrEmpty(_model.PhotoDataUrl))
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Close"
+                                   OnClick="@(() => _model.PhotoDataUrl = null)">Retirer</MudButton>
+                    }
+                </MudStack>
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.TravelExplore"
+                       FullWidth="true" Class="mb-3"
+                       OnClick="OpenSearchAsync">
+                Rechercher en ligne
+            </MudButton>
+            <MudAutocomplete T="string"
+                             Value="_model.ShopName"
+                             ValueChanged="OnShopNameChanged"
+                             Label="Nom du shop *"
+                             Placeholder="ex : Coutume"
+                             Variant="Variant.Outlined"
+                             Required="true"
+                             SearchFunc="@SearchShopsAsync"
+                             CoerceText="true"
+                             CoerceValue="true"
+                             OpenOnFocus="true"
+                             MinCharacters="0"
+                             Clearable="true"
+                             ResetValueOnEmptyText="false"
+                             Class="mb-3" />
+            <MudGrid Spacing="2">
+                <MudItem xs="6"><MudTextField @bind-Value="_model.City" Label="Ville" Variant="Variant.Outlined" Placeholder="Paris" /></MudItem>
+                <MudItem xs="6"><MudTextField @bind-Value="_model.Country" Label="Pays" Variant="Variant.Outlined" Placeholder="France" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_model.Address" Label="Adresse" Variant="Variant.Outlined" Placeholder="ex : 47 rue de Babylone, 75007" /></MudItem>
+            </MudGrid>
+            @if (_model.Latitude is not null && _model.Longitude is not null)
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">
+                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />
+                    @_model.Latitude.Value.ToString("0.#####", _inv), @_model.Longitude.Value.ToString("0.#####", _inv)
+                    @if (!string.IsNullOrEmpty(_model.ExternalPlaceId))
+                    {
+                        <span class="ml-2">· source : @ProviderLabel(_model.ExternalPlaceId)</span>
+                    }
+                </MudText>
+            }
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudDatePicker @bind-Date="_date" Label="Date" Variant="Variant.Outlined" Editable="true" />
+            <MudAutocomplete T="string"
+                             Value="_model.DrinkType"
+                             ValueChanged="@(v => _model.DrinkType = v)"
+                             Label="Boisson *"
+                             Placeholder="Espresso, V60, Cappuccino…"
+                             Variant="Variant.Outlined"
+                             Required="true"
+                             SearchFunc="@SearchDrinksAsync"
+                             CoerceText="true"
+                             CoerceValue="true"
+                             OpenOnFocus="true"
+                             MinCharacters="0"
+                             Clearable="true"
+                             ResetValueOnEmptyText="false"
+                             Class="mt-3" />
+            <MudAutocomplete T="string"
+                             Value="_model.CoffeeOrigin"
+                             ValueChanged="@(v => _model.CoffeeOrigin = v)"
+                             Label="Café"
+                             Placeholder="ex : Éthiopie Sidamo, Geisha…"
+                             Variant="Variant.Outlined"
+                             SearchFunc="@SearchCoffeesAsync"
+                             CoerceText="true"
+                             CoerceValue="true"
+                             OpenOnFocus="true"
+                             MinCharacters="0"
+                             Clearable="true"
+                             ResetValueOnEmptyText="false"
+                             Class="mt-3">
+                <ItemTemplate Context="item">
+                    <MudText>@item</MudText>
+                </ItemTemplate>
+                <NoItemsTemplate>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary pa-2">Aucun match — tape pour saisir un nouveau café.</MudText>
+                </NoItemsTemplate>
+            </MudAutocomplete>
+            <MudGrid Spacing="2" Class="mt-1">
+                <MudItem xs="8"><MudNumericField T="decimal?" @bind-Value="_model.Price" Label="Prix" Variant="Variant.Outlined" Format="0.##" Culture="@_inv" Min="0m" /></MudItem>
+                <MudItem xs="4"><MudTextField @bind-Value="_model.Currency" Label="Devise" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Score</MudText>
+            <StarRating Value="@_model.Rating" ValueChanged="@((int v) => _model.Rating = v)" Size="Size.Large" />
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudTextField @bind-Value="_model.Notes" Label="Notes" Variant="Variant.Outlined" Lines="4" Placeholder="ex : extraction propre, ambiance top" />
+        </MudPaper>
+
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                   StartIcon="@Icons.Material.Filled.Save" Disabled="_saving">
+            @(IsEdit ? "Enregistrer" : "Créer la visite")
+        </MudButton>
+
+        @if (IsEdit)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteAsync">Supprimer</MudButton>
+        }
+
+    </MudStack>
+</EditForm>
+
+<style>
+    .photo-preview { width: 80px; height: 80px; border-radius: 12px; object-fit: cover; }
+    .photo-preview.placeholder { background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b; }
+</style>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private bool IsEdit => Id is not null;
+
+    private CoffeeShopVisit _model = new();
+    private DateTime? _date = DateTime.Today;
+    private bool _saving;
+    private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+    private List<Coffee> _allCoffees = new();
+    private List<string> _knownCoffees = new();
+    private List<string> _knownDrinks = new();
+    private List<string> _knownShopNames = new();
+    private Dictionary<string, CoffeeShopVisit> _knownShops = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Charge les valeurs déjà saisies dans des visites précédentes,
+        // pour l'autocomplétion (cohérence d'orthographe + réutilisation des coordonnées).
+        var visits = await Db.ShopVisits.ToCollection().ToList();
+        _allCoffees = await Db.Coffees.ToCollection().ToList();
+        _knownDrinks = Distinct(visits.Select(v => v.DrinkType));
+
+        // Suggestions café : noms de tous les Coffee enregistrés (possédés ou dégustés)
+        // + valeurs CoffeeOrigin legacy des visites pré-FK.
+        var libraryNames = _allCoffees.Select(c => c.Name);
+        var legacyNames = visits.Select(v => v.CoffeeOrigin);
+        _knownCoffees = Distinct(libraryNames.Concat(legacyNames));
+
+        // Annuaire des shops : pour chaque nom unique (case-insensible), garde la visite
+        // la plus récente comme source canonique des coordonnées (ville/pays/adresse/lat/long/PlaceId).
+        _knownShops = visits
+            .Where(v => !string.IsNullOrWhiteSpace(v.ShopName))
+            .OrderByDescending(v => v.Date)
+            .GroupBy(v => v.ShopName!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        _knownShopNames = _knownShops.Keys
+            .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<string> Distinct(IEnumerable<string?> values)
+        => values
+            .Select(s => s?.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private Task<IEnumerable<string>> SearchCoffeesAsync(string query, CancellationToken ct)
+        => Filter(_knownCoffees, query);
+
+    private Task<IEnumerable<string>> SearchDrinksAsync(string query, CancellationToken ct)
+        => Filter(_knownDrinks, query);
+
+    private Task<IEnumerable<string>> SearchShopsAsync(string query, CancellationToken ct)
+        => Filter(_knownShopNames, query);
+
+    private void OnShopNameChanged(string? newName)
+    {
+        _model.ShopName = newName ?? string.Empty;
+
+        // En mode édition, on ne touche pas aux autres champs : la visite est figée dans le temps.
+        if (IsEdit) return;
+        if (string.IsNullOrWhiteSpace(newName)) return;
+        if (!_knownShops.TryGetValue(newName.Trim(), out var src)) return;
+
+        _model.City = src.City;
+        _model.Country = src.Country;
+        _model.Address = src.Address;
+        _model.Latitude = src.Latitude;
+        _model.Longitude = src.Longitude;
+        _model.ExternalPlaceId = src.ExternalPlaceId;
+        Snackbar.Add($"Coordonnées de « {src.ShopName} » réutilisées", Severity.Info);
+    }
+
+    private static Task<IEnumerable<string>> Filter(List<string> source, string query)
+    {
+        IEnumerable<string> results = string.IsNullOrWhiteSpace(query)
+            ? source
+            : source.Where(s => s.Contains(query, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(results);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsEdit)
+        {
+            var v = await Db.ShopVisits.Get(Id!.Value);
+            if (v is not null)
+            {
+                _model = v;
+                _date = v.Date.ToDateTime(TimeOnly.MinValue);
+                // Si la visite référence un Coffee par FK, on affiche son nom dans l'autocomplete
+                // (la string CoffeeOrigin existante est ignorée — la FK est canonique).
+                if (_model.CoffeeId is int cid)
+                {
+                    var c = _allCoffees.FirstOrDefault(x => x.Id == cid);
+                    if (c is not null) _model.CoffeeOrigin = c.Name;
+                }
+            }
+        }
+    }
+
+    private async Task OpenSearchAsync()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var dialogRef = await Dialogs.ShowAsync<PlaceSearchDialog>("Rechercher un coffee shop", options);
+        var result = await dialogRef.Result;
+        if (result is null || result.Canceled) return;
+        if (result.Data is not PlaceResult place) return;
+
+        _model.ShopName = place.Name;
+        if (!string.IsNullOrEmpty(place.Address)) _model.Address = place.Address;
+        if (!string.IsNullOrEmpty(place.City)) _model.City = place.City;
+        if (!string.IsNullOrEmpty(place.Country)) _model.Country = place.Country;
+        _model.Latitude = place.Latitude;
+        _model.Longitude = place.Longitude;
+        _model.ExternalPlaceId = place.ExternalId;
+        Snackbar.Add($"« {place.Name} » importé depuis {ProviderLabel(place.ExternalId)}", Severity.Success);
+        StateHasChanged();
+    }
+
+    private static string ProviderLabel(string? externalId)
+    {
+        if (string.IsNullOrEmpty(externalId)) return "—";
+        if (externalId.StartsWith("google:", StringComparison.Ordinal)) return "Google";
+        if (externalId.StartsWith("osm:", StringComparison.Ordinal)) return "OpenStreetMap";
+        return externalId;
+    }
+
+    private async Task OnPhotoSelectedAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        try
+        {
+            var maxBytes = 10 * 1024 * 1024;
+            await using var stream = file.OpenReadStream(maxBytes);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            var dataUrl = await JS.InvokeAsync<string>("coffeeImage.bytesToCompressedDataUrl",
+                bytes, file.ContentType, 1024, 0.82);
+            _model.PhotoDataUrl = dataUrl;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur image : {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        try
+        {
+            _model.Date = DateOnly.FromDateTime(_date ?? DateTime.Today);
+            await ResolveCoffeeReferenceAsync();
+
+            if (IsEdit)
+            {
+                _model.Id = Id!.Value;
+                await Db.ShopVisits.Put(_model);
+                Snackbar.Add("Visite enregistrée", Severity.Success);
+            }
+            else
+            {
+                _model.CreatedAt = DateTime.UtcNow;
+                _model.Id = 0;
+                await Db.ShopVisits.Add(_model);
+                Snackbar.Add("Visite créée", Severity.Success);
+            }
+            Nav.NavigateTo("/shops");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>
+    /// Résout le champ texte « Café » (_model.CoffeeOrigin) en FK Coffee :
+    /// - Vide → CoffeeId=null, CoffeeOrigin=null
+    /// - Match exact (case-insensible) avec un Coffee existant → CoffeeId, CoffeeOrigin=null
+    /// - Pas de match → auto-crée un Coffee « Dégusté » et lie via CoffeeId
+    /// </summary>
+    private async Task ResolveCoffeeReferenceAsync()
+    {
+        var typed = _model.CoffeeOrigin?.Trim();
+        if (string.IsNullOrEmpty(typed))
+        {
+            _model.CoffeeId = null;
+            _model.CoffeeOrigin = null;
+            return;
+        }
+
+        var match = _allCoffees.FirstOrDefault(c =>
+            string.Equals(c.Name?.Trim(), typed, StringComparison.OrdinalIgnoreCase));
+        if (match is not null)
+        {
+            _model.CoffeeId = match.Id;
+            _model.CoffeeOrigin = null;
+            return;
+        }
+
+        // Auto-création d'un café « Dégusté » : on garde la FK comme source de vérité.
+        var newCoffee = new Coffee
+        {
+            Name = typed,
+            Roaster = string.Empty,
+            IsOwned = false,
+            Process = Process.Washed,
+            PurchaseDate = DateOnly.FromDateTime(DateTime.Today),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        var newId = await Db.Coffees.Add(newCoffee);
+        newCoffee.Id = newId;
+        _allCoffees.Add(newCoffee);
+        _model.CoffeeId = newId;
+        _model.CoffeeOrigin = null;
+        Snackbar.Add($"« {typed} » créé dans tes cafés dégustés", Severity.Info);
+    }
+
+    private async Task DeleteAsync()
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
+        {
+            Title = "Supprimer ?",
+            Message = "Supprimer cette visite ?",
+            YesText = "Supprimer",
+            CancelText = "Annuler"
+        });
+        if (ok != true || Id is null) return;
+        await Db.ShopVisits.Delete(Id.Value);
+        Snackbar.Add("Visite supprimée", Severity.Info);
+        Nav.NavigateTo("/shops");
+    }
+}

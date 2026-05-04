@@ -1,0 +1,108 @@
+<div class="heatmap-wrap">
+    <div class="heatmap-labels">
+        <span>L</span>
+        <span></span>
+        <span>M</span>
+        <span></span>
+        <span>V</span>
+        <span></span>
+        <span>D</span>
+    </div>
+    <div class="heatmap">
+        @foreach (var week in _weeks)
+        {
+            <div class="heatmap-col">
+                @foreach (var day in week)
+                {
+                    <div class="heatmap-cell @LevelClass(day.Count)"
+                         title="@($"{day.Date:dd/MM/yyyy} — {day.Count} brew{(day.Count > 1 ? "s" : "")}")"></div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .heatmap-wrap {
+        display: flex;
+        gap: 4px;
+        align-items: flex-start;
+    }
+    .heatmap-labels {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 9px;
+        color: #8a7560;
+        line-height: 14px;
+    }
+    .heatmap-labels span {
+        height: 14px;
+    }
+    .heatmap {
+        display: flex;
+        gap: 3px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+    .heatmap-col {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    .heatmap-cell {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        flex-shrink: 0;
+    }
+    .heatmap-cell.lvl-x { background: transparent; }
+    .heatmap-cell.lvl-0 { background: #f6efe4; }
+    .heatmap-cell.lvl-1 { background: #d4b487; }
+    .heatmap-cell.lvl-2 { background: #bd8d57; }
+    .heatmap-cell.lvl-3 { background: #7d5128; }
+    .heatmap-cell.lvl-4 { background: #3b2418; }
+</style>
+
+@code {
+    [Parameter, EditorRequired] public Dictionary<DateOnly, int> Counts { get; set; } = new();
+    [Parameter] public int WeeksBack { get; set; } = 13;
+
+    private record DayCell(DateOnly Date, int Count, bool InRange);
+
+    private List<List<DayCell>> _weeks = new();
+
+    protected override void OnParametersSet()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        // Monday-first weeks: dayOfWeek (0..6) where Monday=0
+        var dow = ((int)today.DayOfWeek + 6) % 7;
+        var endOfThisWeek = today.AddDays(6 - dow);
+        var startOfFirstWeek = endOfThisWeek.AddDays(-7 * (WeeksBack - 1) - 6);
+
+        _weeks = new List<List<DayCell>>();
+        var cursor = startOfFirstWeek;
+        while (cursor <= endOfThisWeek)
+        {
+            var week = new List<DayCell>();
+            for (int i = 0; i < 7; i++)
+            {
+                var d = cursor.AddDays(i);
+                var inRange = d <= today;
+                var count = inRange ? Counts.GetValueOrDefault(d, 0) : 0;
+                week.Add(new DayCell(d, count, inRange));
+            }
+            _weeks.Add(week);
+            cursor = cursor.AddDays(7);
+        }
+    }
+
+    private static string LevelClass(int count)
+    {
+        if (count == 0) return "lvl-0";
+        if (count == 1) return "lvl-1";
+        if (count == 2) return "lvl-2";
+        if (count == 3) return "lvl-3";
+        return "lvl-4";
+    }
+}

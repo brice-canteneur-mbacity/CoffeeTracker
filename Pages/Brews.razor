@@ -1,0 +1,147 @@
+@page "/brews"
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+
+<PageTitle>Brews</PageTitle>
+
+<PageHeader Title="Brews" Subtitle="@($"{_brews.Count} tasse{(_brews.Count > 1 ? "s" : "")}")">
+    <Action>
+        <MudIconButton Icon="@Icons.Material.Filled.Add"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Size="Size.Medium"
+                       OnClick="@(() => Nav.NavigateTo("/brews/new"))" />
+    </Action>
+</PageHeader>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+}
+else
+{
+    <MudTextField @bind-Value="_search" Placeholder="Rechercher (méthode, café, notes…)"
+                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Clearable="true" Immediate="true" DebounceInterval="150" />
+
+    <div class="mb-3">
+        <MudChip T="string" Variant="@(_favoritesOnly ? Variant.Filled : Variant.Outlined)"
+                 Color="@(_favoritesOnly ? Color.Error : Color.Default)"
+                 Icon="@(_favoritesOnly ? Icons.Material.Filled.Favorite : Icons.Material.Filled.FavoriteBorder)"
+                 OnClick="@(() => _favoritesOnly = !_favoritesOnly)">
+            Favoris uniquement
+        </MudChip>
+    </div>
+
+    var filtered = Filter(_brews);
+    var hasSearch = !string.IsNullOrWhiteSpace(_search) || _favoritesOnly;
+
+    if (filtered.Count == 0)
+    {
+        <MudPaper Class="pa-8 d-flex flex-column align-center" Elevation="0">
+            <MudIcon Icon="@Icons.Material.Filled.LocalCafe" Size="Size.Large" Class="mb-3" Style="color:#a06d3b" />
+            @if (hasSearch)
+            {
+                <MudText Typo="Typo.h6">Aucun résultat</MudText>
+                <MudText Class="mud-text-secondary">pour « @_search »</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.h6">Aucun brew encore</MudText>
+                <MudText Class="mb-4 mud-text-secondary">Garde une trace de tes préparations.</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@(() => Nav.NavigateTo("/brews/new"))">Ajouter un brew</MudButton>
+            }
+        </MudPaper>
+    }
+    else
+    {
+    <MudStack Spacing="2">
+        @foreach (var b in filtered)
+        {
+            var coffee = _coffeesById.GetValueOrDefault(b.CoffeeId);
+            var ratio = string.IsNullOrEmpty(b.Ratio) ? Format.Ratio(b.DoseG, b.YieldG) : b.Ratio;
+            <MudPaper Class="pa-3 brew-card" Elevation="0"
+                      @onclick="@(() => Nav.NavigateTo($"/brews/{b.Id}/edit"))">
+                <div class="d-flex" style="gap:12px;">
+                    <div class="thumb-md thumb-placeholder">
+                        <MudIcon Icon="@Icons.Material.Filled.LocalCafe" />
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div class="d-flex align-start justify-space-between" style="gap:8px;">
+                            <div class="d-flex align-center" style="gap:6px; min-width:0;">
+                                <MudText Style="font-weight:600;">@b.Method.GetLabel()</MudText>
+                                @if (b.IsFavorite)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Favorite" Size="Size.Small" Style="color:#dc2626;" />
+                                }
+                            </div>
+                            <StarRating Value="@b.Rating" ReadOnly="true" Size="Size.Small" />
+                        </div>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary text-truncate">
+                            @(coffee is null ? "Café supprimé" : $"{coffee.Roaster} · {coffee.Name}")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary text-truncate mt-1">
+                            @Format.DateTimeShort(b.Date)
+                            @if (!string.IsNullOrEmpty(ratio)) { <span> · @ratio</span> }
+                            @if (b.DoseG is not null) { <span> · @b.DoseG g</span> }
+                            @if (b.YieldG is not null) { <span> → @b.YieldG g</span> }
+                        </MudText>
+                    </div>
+                    <span @onclick="() => GoDuplicate(b.Id)" @onclick:stopPropagation="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.Replay" Size="Size.Small"
+                                       Color="Color.Primary"
+                                       aria-label="Refaire ce brew" />
+                    </span>
+                </div>
+            </MudPaper>
+        }
+    </MudStack>
+    }
+}
+
+<style>
+    .brew-card { border: 1px solid #f0e7d8; cursor: pointer; transition: transform .08s; }
+    .brew-card:active { transform: scale(.99); }
+    .thumb-md { width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0; }
+    .thumb-placeholder { background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b; }
+</style>
+
+@code {
+    private bool _loading = true;
+    private List<Brew> _brews = new();
+    private Dictionary<int, Coffee> _coffeesById = new();
+    private string _search = string.Empty;
+    private bool _favoritesOnly;
+
+    private List<Brew> Filter(List<Brew> list)
+    {
+        var src = _favoritesOnly ? list.Where(b => b.IsFavorite) : list;
+        if (string.IsNullOrWhiteSpace(_search)) return src.ToList();
+        var q = _search.Trim();
+        var sc = StringComparison.OrdinalIgnoreCase;
+        return src.Where(b =>
+        {
+            var c = _coffeesById.GetValueOrDefault(b.CoffeeId);
+            return b.Method.GetLabel().Contains(q, sc)
+                || (b.Notes?.Contains(q, sc) ?? false)
+                || (b.GrindSize?.Contains(q, sc) ?? false)
+                || (c?.Roaster.Contains(q, sc) ?? false)
+                || (c?.Name.Contains(q, sc) ?? false)
+                || (c?.Country?.Contains(q, sc) ?? false);
+        }).ToList();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var rawBrews = await Db.Brews.OrderBy(nameof(Brew.Date)).Reverse().ToList();
+        _brews = rawBrews;
+        var coffees = await Db.Coffees.ToCollection().ToList();
+        _coffeesById = coffees.ToDictionary(c => c.Id, c => c);
+        _loading = false;
+    }
+
+    private void GoDuplicate(int brewId) => Nav.NavigateTo($"/brews/new?fromBrewId={brewId}");
+}

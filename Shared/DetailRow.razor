@@ -1,0 +1,31 @@
+<div class="detail-row">
+    <span class="detail-label">@Label</span>
+    <span class="detail-value">@Value</span>
+</div>
+
+<style>
+    .detail-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 0;
+    }
+    .detail-row + .detail-row {
+        border-top: 1px solid #f6efe4;
+    }
+    .detail-label {
+        color: #8a7560;
+        font-size: 14px;
+    }
+    .detail-value {
+        color: #241510;
+        font-weight: 500;
+        text-align: right;
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+}

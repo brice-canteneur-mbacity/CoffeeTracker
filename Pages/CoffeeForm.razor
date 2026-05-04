@@ -1,0 +1,233 @@
+@page "/coffees/new"
+@page "/coffees/{Id:int}/edit"
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PageTitle>@(IsEdit ? "Modifier le café" : "Nouveau café")</PageTitle>
+
+<PageHeader Title="@(IsEdit ? "Modifier le café" : "Nouveau café")" Back="true" BackUrl="@(IsEdit ? $"/coffees/{Id}" : "/coffees")" />
+
+<EditForm Model="_model" OnValidSubmit="SaveAsync">
+    <DataAnnotationsValidator />
+
+    <MudStack Spacing="4">
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudSwitch T="bool" @bind-Value="_model.IsOwned" Color="Color.Primary"
+                       Label="@(_model.IsOwned ? "J'ai ce sac à la maison (suivi de stock)" : "Café juste dégusté en boutique")" />
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Photo</MudText>
+            <div class="d-flex align-center" style="gap:12px;">
+                @if (!string.IsNullOrEmpty(_model.PhotoDataUrl))
+                {
+                    <img src="@_model.PhotoDataUrl" class="photo-preview" alt="" />
+                }
+                else
+                {
+                    <div class="photo-preview placeholder">
+                        <MudIcon Icon="@Icons.Material.Filled.PhotoCamera" />
+                    </div>
+                }
+                <MudStack Spacing="1">
+                    <InputFile id="coffeePhotoInput" OnChange="OnPhotoSelectedAsync" accept="image/*" capture="environment" style="display:none;" />
+                    <label for="coffeePhotoInput" class="upload-button">
+                        <MudIcon Icon="@Icons.Material.Filled.PhotoCamera" Size="Size.Small" />
+                        <span>@(string.IsNullOrEmpty(_model.PhotoDataUrl) ? "Ajouter" : "Changer")</span>
+                    </label>
+                    @if (!string.IsNullOrEmpty(_model.PhotoDataUrl))
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Close"
+                                   OnClick="@(() => _model.PhotoDataUrl = null)">Retirer</MudButton>
+                    }
+                </MudStack>
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Identité</MudText>
+            <MudTextField @bind-Value="_model.Roaster"
+                          Label="@(_model.IsOwned ? "Torréfacteur *" : "Torréfacteur")"
+                          Variant="Variant.Outlined" Required="@_model.IsOwned"
+                          Placeholder="ex : La Cafétéria" Class="mb-3" />
+            <MudTextField @bind-Value="_model.Name" Label="Nom du café *" Variant="Variant.Outlined" Required="true" Placeholder="ex : Geisha El Diablo" />
+        </MudPaper>
+
+        @if (_model.IsBlend)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Composition</MudText>
+                <MudTextField @bind-Value="_model.Composition" Label="Composition du blend"
+                              Variant="Variant.Outlined" Lines="4"
+                              Placeholder="ex : 60% Brésil pulped natural, 40% Éthiopie Sidamo washed" />
+            </MudPaper>
+        }
+        else
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Origine</MudText>
+                <MudGrid Spacing="2">
+                    <MudItem xs="6"><MudTextField @bind-Value="_model.Country" Label="Pays" Variant="Variant.Outlined" Placeholder="Éthiopie" /></MudItem>
+                    <MudItem xs="6"><MudTextField @bind-Value="_model.Region" Label="Région" Variant="Variant.Outlined" Placeholder="Sidamo" /></MudItem>
+                    <MudItem xs="12"><MudTextField @bind-Value="_model.Farm" Label="Ferme / station" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="6"><MudTextField @bind-Value="_model.Producer" Label="Producteur" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="6"><MudTextField @bind-Value="_model.Altitude" Label="Altitude" Variant="Variant.Outlined" Placeholder="1800-2000m" /></MudItem>
+                    <MudItem xs="12"><MudTextField @bind-Value="_model.Variety" Label="Variété" Variant="Variant.Outlined" Placeholder="Geisha, Bourbon…" /></MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Process & torréfaction</MudText>
+            <MudSelect T="Process" @bind-Value="_model.Process" Label="Process" Variant="Variant.Outlined" Class="mb-3">
+                @foreach (var p in Enum.GetValues<Process>())
+                {
+                    <MudSelectItem T="Process" Value="@p">@p.GetLabel()</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField @bind-Value="_model.ProcessNotes" Label="Notes process" Variant="Variant.Outlined" Placeholder="ex : 72h fermentation anaérobie" Class="mb-3" />
+            <MudSwitch T="bool" @bind-Value="_model.IsDecaf" Label="Décaféiné" Color="Color.Primary" Class="mb-2" />
+            <MudSwitch T="bool" @bind-Value="_model.IsBlend" Label="C'est un blend" Color="Color.Primary" Class="mb-3" />
+            <MudGrid Spacing="2">
+                <MudItem xs="6">
+                    <MudSelect T="RoastLevel?" @bind-Value="_model.RoastLevel" Label="Niveau" Variant="Variant.Outlined" Clearable="true">
+                        @foreach (var r in Enum.GetValues<RoastLevel>())
+                        {
+                            <MudSelectItem T="RoastLevel?" Value="@r">@r.GetLabel()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudDatePicker @bind-Date="_roastDate" Label="Date de torréfaction" Variant="Variant.Outlined" Editable="true" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        @if (_model.IsOwned)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Achat</MudText>
+                <MudGrid Spacing="2">
+                    <MudItem xs="6">
+                        <MudDatePicker @bind-Date="_purchaseDate" Label="Date d'achat *" Variant="Variant.Outlined" Required="true" Editable="true" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField T="int?" @bind-Value="_model.WeightGrams" Label="Poids (g)" Variant="Variant.Outlined" Min="0" Placeholder="250" />
+                    </MudItem>
+                    <MudItem xs="8">
+                        <MudNumericField T="decimal?" @bind-Value="_model.Price" Label="Prix" Variant="Variant.Outlined" Format="0.##" Culture="@_inv" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudTextField @bind-Value="_model.Currency" Label="Devise" Variant="Variant.Outlined" />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Notes</MudText>
+            <MudTextField @bind-Value="_model.TastingNotes" Label="Notes du torréfacteur" Variant="Variant.Outlined"
+                          Lines="4" Placeholder="ex : myrtille, jasmin, sucre brun" />
+        </MudPaper>
+
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                   StartIcon="@Icons.Material.Filled.Save" Disabled="_saving">
+            @(IsEdit ? "Enregistrer" : "Créer le café")
+        </MudButton>
+
+    </MudStack>
+</EditForm>
+
+<style>
+    .photo-preview {
+        width: 80px; height: 80px; border-radius: 12px; object-fit: cover;
+    }
+    .photo-preview.placeholder {
+        background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b;
+    }
+</style>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private bool IsEdit => Id is not null;
+
+    private Coffee _model = new();
+    private DateTime? _purchaseDate = DateTime.Today;
+    private DateTime? _roastDate;
+    private bool _saving;
+    private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsEdit)
+        {
+            var c = await Db.Coffees.Get(Id!.Value);
+            if (c is not null)
+            {
+                _model = c;
+                _purchaseDate = c.PurchaseDate.ToDateTime(TimeOnly.MinValue);
+                _roastDate = c.RoastDate?.ToDateTime(TimeOnly.MinValue);
+            }
+        }
+    }
+
+    private async Task OnPhotoSelectedAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        try
+        {
+            var maxBytes = 10 * 1024 * 1024;
+            await using var stream = file.OpenReadStream(maxBytes);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            var dataUrl = await JS.InvokeAsync<string>("coffeeImage.bytesToCompressedDataUrl",
+                bytes, file.ContentType, 1024, 0.82);
+            _model.PhotoDataUrl = dataUrl;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur image : {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        try
+        {
+            _model.PurchaseDate = DateOnly.FromDateTime(_purchaseDate ?? DateTime.Today);
+            _model.RoastDate = _roastDate is null ? null : DateOnly.FromDateTime(_roastDate.Value);
+            _model.UpdatedAt = DateTime.UtcNow;
+
+            if (IsEdit)
+            {
+                _model.Id = Id!.Value;
+                await Db.Coffees.Put(_model);
+                Snackbar.Add("Café enregistré", Severity.Success);
+                Nav.NavigateTo($"/coffees/{Id}");
+            }
+            else
+            {
+                _model.CreatedAt = DateTime.UtcNow;
+                _model.Id = 0;
+                var newId = await Db.Coffees.Add(_model);
+                Snackbar.Add("Café créé", Severity.Success);
+                Nav.NavigateTo($"/coffees/{newId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

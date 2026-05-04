@@ -1,0 +1,121 @@
+@inject PlaceSearchService Search
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width: 280px;">
+            <div>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">Source</MudText>
+                <div class="d-flex flex-wrap" style="gap:6px;">
+                    <MudChip T="string" Size="Size.Small"
+                             Variant="@(_selectedProvider == "google" ? Variant.Filled : Variant.Outlined)"
+                             Color="@(_selectedProvider == "google" ? Color.Primary : Color.Default)"
+                             Disabled="!_hasGoogleKey"
+                             OnClick="@(() => OnProviderChangedAsync("google"))">
+                        Google Places
+                    </MudChip>
+                    <MudChip T="string" Size="Size.Small"
+                             Variant="@(_selectedProvider == "osm" ? Variant.Filled : Variant.Outlined)"
+                             Color="@(_selectedProvider == "osm" ? Color.Primary : Color.Default)"
+                             OnClick="@(() => OnProviderChangedAsync("osm"))">
+                        OpenStreetMap
+                    </MudChip>
+                </div>
+                @if (!_hasGoogleKey)
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1 d-block">
+                        Aucune clé Google détectée — ajoute-la dans Réglages pour activer Google Places.
+                    </MudText>
+                }
+            </div>
+
+            <MudAutocomplete @ref="_autocomplete" T="PlaceResult"
+                             Label="Nom du shop"
+                             Placeholder="ex : Coutume"
+                             Variant="Variant.Outlined"
+                             SearchFunc="@SearchAsync"
+                             ToStringFunc="@(p => p?.Name ?? string.Empty)"
+                             ValueChanged="OnSelected"
+                             DebounceInterval="300"
+                             MinCharacters="2"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true"
+                             OpenOnFocus="false"
+                             Immediate="true">
+                <ItemTemplate Context="item">
+                    <div class="d-flex flex-column" style="gap:2px; min-width:0;">
+                        <MudText Style="font-weight:600;">@item.Name</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary text-truncate">
+                            @(item.Address ?? string.Join(", ", new[] { item.City, item.Country }.Where(s => !string.IsNullOrEmpty(s))))
+                        </MudText>
+                    </div>
+                </ItemTemplate>
+                <NoItemsTemplate>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary pa-2">Aucun résultat — tape au moins 2 caractères.</MudText>
+                </NoItemsTemplate>
+            </MudAutocomplete>
+
+            @if (_lastError is not null)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">@_lastError</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Annuler</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private MudAutocomplete<PlaceResult>? _autocomplete;
+    private string _selectedProvider = "osm";
+    private bool _hasGoogleKey;
+    private string? _lastError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var key = await Search.GetGoogleKeyAsync();
+        _hasGoogleKey = !string.IsNullOrWhiteSpace(key);
+        _selectedProvider = _hasGoogleKey ? "google" : "osm";
+    }
+
+    private async Task OnProviderChangedAsync(string newProvider)
+    {
+        if (newProvider == _selectedProvider) return;
+        _selectedProvider = newProvider;
+        _lastError = null;
+        if (_autocomplete is not null)
+        {
+            await _autocomplete.ClearAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async Task<IEnumerable<PlaceResult>> SearchAsync(string query, CancellationToken ct)
+    {
+        _lastError = null;
+        try
+        {
+            var resp = await Search.SearchAsync(query ?? string.Empty, _selectedProvider, ct);
+            StateHasChanged();
+            return resp.Results;
+        }
+        catch (Exception ex)
+        {
+            _lastError = _selectedProvider == "google"
+                ? $"Google a échoué : {ex.Message}. Bascule sur OpenStreetMap dans la dropdown ci-dessus, ou vérifie ta clé / l'activation de Places API (New) / les restrictions HTTP referrer."
+                : $"Erreur recherche : {ex.Message}";
+            StateHasChanged();
+            return Array.Empty<PlaceResult>();
+        }
+    }
+
+    private void OnSelected(PlaceResult? p)
+    {
+        if (p is null) return;
+        MudDialog.Close(DialogResult.Ok(p));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

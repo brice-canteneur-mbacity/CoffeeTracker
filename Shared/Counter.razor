@@ -1,0 +1,11 @@
+<MudPaper Class="pa-3 d-flex flex-column align-center" Elevation="0">
+    <MudIcon Icon="@Icon" Size="Size.Small" Style="color:#8a7560;" />
+    <MudText Typo="Typo.h5" Class="mt-1" Style="font-weight:700;">@Value</MudText>
+    <MudText Typo="Typo.caption" Class="mud-text-secondary">@Label</MudText>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public int Value { get; set; }
+}

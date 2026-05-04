@@ -1,0 +1,357 @@
+@page "/brews/new"
+@page "/brews/{Id:int}/edit"
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+<PageTitle>@(IsEdit ? "Modifier le brew" : "Nouveau brew")</PageTitle>
+
+<PageHeader Title="@(IsEdit ? "Modifier le brew" : "Nouveau brew")" Back="true" BackUrl="/brews" />
+
+<EditForm Model="_model" OnValidSubmit="SaveAsync">
+    <DataAnnotationsValidator />
+
+    <MudStack Spacing="4">
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudSelect T="int" @bind-Value="_model.CoffeeId" Label="Café *" Variant="Variant.Outlined" Required="true" RequiredError="Sélectionne un café">
+                @foreach (var c in _coffees)
+                {
+                    <MudSelectItem T="int" Value="@c.Id">@c.Roaster · @c.Name@(c.FinishedAt is null ? "" : " (terminé)")</MudSelectItem>
+                }
+            </MudSelect>
+            @if (_coffees.Count == 0)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1">Crée d'abord un café dans l'onglet Cafés.</MudText>
+            }
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudGrid Spacing="2">
+                <MudItem xs="6">
+                    <MudDatePicker @bind-Date="_date" Label="Date" Variant="Variant.Outlined" Editable="true" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTimePicker @bind-Time="_time" Label="Heure" Variant="Variant.Outlined" Editable="true" />
+                </MudItem>
+            </MudGrid>
+            <MudSelect T="BrewMethod" Value="_model.Method" ValueChanged="OnMethodChanged"
+                       Label="Méthode" Variant="Variant.Outlined" Class="mt-3">
+                @foreach (var m in Enum.GetValues<BrewMethod>())
+                {
+                    <MudSelectItem T="BrewMethod" Value="@m">@m.GetLabel()</MudSelectItem>
+                }
+            </MudSelect>
+        </MudPaper>
+
+        @{ var brewers = CurrentBrewers(); }
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Machines utilisées (optionnel)</MudText>
+
+            <MudSelect T="int?" @bind-Value="_model.BrewerMachineId" Label="@BrewerLabel()"
+                       Variant="Variant.Outlined" Clearable="true" Class="mb-3">
+                <MudSelectItem T="int?" Value="@((int?)null)">— Aucune —</MudSelectItem>
+                @foreach (var m in brewers)
+                {
+                    <MudSelectItem T="int?" Value="@m.Id">@m.Name <span class="mud-text-secondary" style="font-size:11px;">· @m.Type.GetLabel()</span></MudSelectItem>
+                }
+            </MudSelect>
+            @if (brewers.Count == 0)
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block" Style="margin-top:-8px;">
+                    Aucune machine compatible enregistrée — tu peux en ajouter dans l'onglet « Machines ».
+                </MudText>
+            }
+
+            <MudSelect T="int?" @bind-Value="_model.GrinderId" Label="Moulin"
+                       Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem T="int?" Value="@((int?)null)">— Aucun —</MudSelectItem>
+                @foreach (var m in _grinders)
+                {
+                    <MudSelectItem T="int?" Value="@m.Id">@m.Name</MudSelectItem>
+                }
+            </MudSelect>
+            @if (_grinders.Count == 0)
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block" Style="margin-top:4px;">
+                    Aucun moulin enregistré.
+                </MudText>
+            }
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <div class="d-flex align-center justify-space-between">
+                <div>
+                    <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Score</MudText>
+                    <StarRating Value="@_model.Rating" ValueChanged="@((int v) => _model.Rating = v)" Size="Size.Large" />
+                </div>
+                <MudIconButton
+                    Icon="@(_model.IsFavorite ? Icons.Material.Filled.Favorite : Icons.Material.Filled.FavoriteBorder)"
+                    Color="@(_model.IsFavorite ? Color.Error : Color.Default)"
+                    Size="Size.Large"
+                    OnClick="@(() => _model.IsFavorite = !_model.IsFavorite)"
+                    aria-label="Favori" />
+            </div>
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Recette</MudText>
+
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">Ratio cible</MudText>
+            <div class="d-flex flex-wrap mb-3" style="gap:6px;">
+                @foreach (var preset in _ratioPresets)
+                {
+                    <MudChip T="string" Size="Size.Small"
+                             Variant="@(_targetRatio == preset.Value ? Variant.Filled : Variant.Outlined)"
+                             Color="@(_targetRatio == preset.Value ? Color.Primary : Color.Default)"
+                             OnClick="@(() => SetRatio(preset.Value, preset.Label))">
+                        @preset.Label
+                    </MudChip>
+                }
+                <MudChip T="string" Size="Size.Small"
+                         Variant="@(_targetRatio is null ? Variant.Filled : Variant.Outlined)"
+                         Color="@(_targetRatio is null ? Color.Primary : Color.Default)"
+                         OnClick="@(() => SetRatio(null, null))">
+                    Aucun
+                </MudChip>
+            </div>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="6">
+                    <MudNumericField T="decimal?" Value="_model.DoseG"
+                                     ValueChanged="OnDoseChanged"
+                                     Label="Dose (g)" Variant="Variant.Outlined"
+                                     Format="0.#" Culture="@_inv" Min="0m" Immediate="true" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField Value="@YieldDisplay"
+                                  Label="Yield (g)" Variant="Variant.Outlined"
+                                  ReadOnly="true"
+                                  HelperText="@YieldHint" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.GrindSize" Label="Mouture"
+                                  Variant="Variant.Outlined" Placeholder="ex : Niche 15 ; medium-fine" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <MudTextField @bind-Value="_model.Notes" Label="Notes de dégustation" Variant="Variant.Outlined" Lines="4" Placeholder="ex : floral, sucré, finale propre" />
+        </MudPaper>
+
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                   StartIcon="@Icons.Material.Filled.Save" Disabled="_saving">
+            @(IsEdit ? "Enregistrer" : "Créer le brew")
+        </MudButton>
+
+        @if (IsEdit)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Replay"
+                       OnClick="@(() => Nav.NavigateTo($"/brews/new?fromBrewId={Id}"))">
+                Refaire ce brew
+            </MudButton>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteAsync">Supprimer</MudButton>
+        }
+
+    </MudStack>
+</EditForm>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    [SupplyParameterFromQuery] public int? CoffeeId { get; set; }
+    [SupplyParameterFromQuery] public int? FromBrewId { get; set; }
+
+    private bool IsEdit => Id is not null;
+    private Brew _model = new();
+    private DateTime? _date = DateTime.Today;
+    private TimeSpan? _time = DateTime.Now.TimeOfDay;
+    private List<Coffee> _coffees = new();
+    private List<Machine> _allBrewers = new();
+    private List<Machine> _grinders = new();
+    private bool _saving;
+    private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    private decimal? _targetRatio;
+    private readonly (string Label, decimal Value)[] _ratioPresets =
+    {
+        ("1:1.5", 1.5m),
+        ("1:2", 2m),
+        ("1:2.5", 2.5m),
+        ("1:3", 3m),
+        ("1:15", 15m),
+        ("1:16", 16m),
+        ("1:17", 17m)
+    };
+
+    private string YieldDisplay => _model.YieldG is decimal y ? y.ToString("0.#", _inv) : "—";
+
+    private string? YieldHint
+    {
+        get
+        {
+            if (_targetRatio is null) return "Choisis un ratio cible";
+            if (_model.DoseG is null or 0m) return "Saisis la dose";
+            return $"Auto : dose × {_model.Ratio}";
+        }
+    }
+
+    private void SetRatio(decimal? value, string? label)
+    {
+        _targetRatio = value;
+        _model.Ratio = label;
+        Recompute();
+    }
+
+    private void OnDoseChanged(decimal? dose)
+    {
+        _model.DoseG = dose;
+        Recompute();
+    }
+
+    private void Recompute()
+    {
+        if (_targetRatio is decimal r && _model.DoseG is decimal d && d > 0m)
+        {
+            _model.YieldG = Math.Round(d * r, 1);
+        }
+        else
+        {
+            _model.YieldG = null;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Pour un brew on ne propose que les cafés possédés (avec stock potentiel) —
+        // les cafés « dégustés » ne se brassent pas à la maison.
+        var allCoffees = await Db.Coffees.OrderBy(nameof(Coffee.CreatedAt)).Reverse().ToList();
+        _coffees = allCoffees.Where(c => c.IsOwned).ToList();
+        if (CoffeeId is not null) _model.CoffeeId = CoffeeId.Value;
+
+        var allMachines = await Db.Machines.ToCollection().ToList();
+        _allBrewers = allMachines.Where(m => m.Type.IsBrewer()).ToList();
+        _grinders = allMachines.Where(m => m.Type == MachineType.Grinder).ToList();
+
+        if (!IsEdit && FromBrewId is not null)
+        {
+            var src = await Db.Brews.Get(FromBrewId.Value);
+            if (src is not null)
+            {
+                _model.CoffeeId = src.CoffeeId;
+                _model.Method = src.Method;
+                _model.DoseG = src.DoseG;
+                _model.YieldG = src.YieldG;
+                _model.Ratio = src.Ratio;
+                _model.GrindSize = src.GrindSize;
+                _model.Notes = src.Notes;
+                _model.BrewerMachineId = src.BrewerMachineId;
+                _model.GrinderId = src.GrinderId;
+                _targetRatio = ParseRatio(_model.Ratio);
+            }
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsEdit)
+        {
+            var b = await Db.Brews.Get(Id!.Value);
+            if (b is not null)
+            {
+                _model = b;
+                _date = b.Date.Date;
+                _time = b.Date.TimeOfDay;
+                _targetRatio = ParseRatio(_model.Ratio);
+            }
+        }
+    }
+
+    private decimal? ParseRatio(string? label)
+    {
+        if (string.IsNullOrWhiteSpace(label)) return null;
+        var preset = _ratioPresets.FirstOrDefault(p => p.Label == label);
+        if (preset.Value != 0m) return preset.Value;
+        // Best-effort parse for legacy strings like "1:2.5"
+        var parts = label.Split(':');
+        if (parts.Length == 2 && decimal.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Any, _inv, out var v))
+            return v;
+        return null;
+    }
+
+    private List<Machine> CurrentBrewers()
+    {
+        var t = MachineTypeOrder.BrewerTypeFor(_model.Method);
+        return t is null ? _allBrewers : _allBrewers.Where(m => m.Type == t.Value).ToList();
+    }
+
+    private string BrewerLabel()
+    {
+        var t = MachineTypeOrder.BrewerTypeFor(_model.Method);
+        return t is null ? "Machine" : $"Machine ({t.Value.GetLabel()})";
+    }
+
+    private void OnMethodChanged(BrewMethod m)
+    {
+        _model.Method = m;
+        // Si la machine actuellement sélectionnée n'est plus compatible, on la désélectionne.
+        if (_model.BrewerMachineId is int id && CurrentBrewers().All(b => b.Id != id))
+        {
+            _model.BrewerMachineId = null;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        try
+        {
+            var d = _date ?? DateTime.Today;
+            var t = _time ?? TimeSpan.Zero;
+            _model.Date = d.Date.Add(t);
+            if (string.IsNullOrWhiteSpace(_model.Ratio)) _model.Ratio = null;
+
+            if (IsEdit)
+            {
+                _model.Id = Id!.Value;
+                await Db.Brews.Put(_model);
+                Snackbar.Add("Brew enregistré", Severity.Success);
+            }
+            else
+            {
+                _model.CreatedAt = DateTime.UtcNow;
+                _model.Id = 0;
+                await Db.Brews.Add(_model);
+                Snackbar.Add("Brew créé", Severity.Success);
+            }
+            Nav.NavigateTo("/brews");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
+        {
+            Title = "Supprimer ?",
+            Message = "Supprimer ce brew ?",
+            YesText = "Supprimer",
+            CancelText = "Annuler"
+        });
+        if (ok != true || Id is null) return;
+        await Db.Brews.Delete(Id.Value);
+        Snackbar.Add("Brew supprimé", Severity.Info);
+        Nav.NavigateTo("/brews");
+    }
+}

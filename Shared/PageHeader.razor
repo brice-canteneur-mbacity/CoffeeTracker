@@ -1,0 +1,66 @@
+@inject NavigationManager Nav
+
+<div class="page-header">
+    @if (Back)
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Medium" OnClick="GoBack" Class="page-header-back" />
+    }
+    <div class="page-header-text">
+        <MudText Typo="Typo.h5" Class="page-header-title">@Title</MudText>
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <MudText Typo="Typo.body2" Class="page-header-subtitle">@Subtitle</MudText>
+        }
+    </div>
+    @if (Action is not null)
+    {
+        <div class="page-header-action">@Action</div>
+    }
+</div>
+
+<style>
+    .page-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 16px 0 12px 0;
+        background: rgba(253, 250, 246, 0.95);
+        backdrop-filter: blur(8px);
+    }
+    .page-header-back {
+        margin-left: -8px;
+    }
+    .page-header-text {
+        flex: 1;
+        min-width: 0;
+    }
+    .page-header-title {
+        font-weight: 700 !important;
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .page-header-subtitle {
+        color: #8a7560;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .page-header-action {
+        flex-shrink: 0;
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public bool Back { get; set; }
+    [Parameter] public string? BackUrl { get; set; }
+    [Parameter] public RenderFragment? Action { get; set; }
+
+    private void GoBack() => Nav.NavigateTo(BackUrl ?? "/");
+}
