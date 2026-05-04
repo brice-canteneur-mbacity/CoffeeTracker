@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
+@inject SyncService Sync
 
 <PageTitle>@(IsEdit ? "Modifier le brew" : "Nouveau brew")</PageTitle>
 
@@ -328,6 +329,7 @@
                 await Db.Brews.Add(_model);
                 Snackbar.Add("Brew créé", Severity.Success);
             }
+            Sync.RequestPush();
             Nav.NavigateTo("brews");
         }
         catch (Exception ex)
@@ -351,6 +353,7 @@
         });
         if (ok != true || Id is null) return;
         await Db.Brews.Delete(Id.Value);
+        Sync.RequestPush();
         Snackbar.Add("Brew supprimé", Severity.Info);
         Nav.NavigateTo("brews");
     }

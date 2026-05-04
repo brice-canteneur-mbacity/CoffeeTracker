@@ -5,6 +5,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 @inject IJSRuntime JS
+@inject SyncService Sync
 
 <PageTitle>@(IsEdit ? "Modifier la machine" : "Nouvelle machine")</PageTitle>
 
@@ -160,6 +161,7 @@
                 await Db.Machines.Add(_model);
                 Snackbar.Add("Machine créée", Severity.Success);
             }
+            Sync.RequestPush();
             Nav.NavigateTo("machines");
         }
         catch (Exception ex)
@@ -183,6 +185,7 @@
         });
         if (ok != true || Id is null) return;
         await Db.Machines.Delete(Id.Value);
+        Sync.RequestPush();
         Snackbar.Add("Machine supprimée", Severity.Info);
         Nav.NavigateTo("machines");
     }

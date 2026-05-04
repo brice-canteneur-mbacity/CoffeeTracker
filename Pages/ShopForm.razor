@@ -6,6 +6,7 @@
 @inject IDialogService Dialogs
 @inject IJSRuntime JS
 @inject PlaceSearchService PlaceSearch
+@inject SyncService Sync
 
 <PageTitle>@(IsEdit ? "Modifier la visite" : "Nouvelle visite")</PageTitle>
 
@@ -330,6 +331,7 @@
                 await Db.ShopVisits.Add(_model);
                 Snackbar.Add("Visite créée", Severity.Success);
             }
+            Sync.RequestPush();
             Nav.NavigateTo("shops");
         }
         catch (Exception ex)
@@ -397,6 +399,7 @@
         });
         if (ok != true || Id is null) return;
         await Db.ShopVisits.Delete(Id.Value);
+        Sync.RequestPush();
         Snackbar.Add("Visite supprimée", Severity.Info);
         Nav.NavigateTo("shops");
     }

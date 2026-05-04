@@ -1,0 +1,234 @@
+@page "/brews/timer"
+@implements IDisposable
+@inject NavigationManager Nav
+
+<PageTitle>Minuteur</PageTitle>
+
+<PageHeader Title="Minuteur" Back="true" BackUrl="brews" />
+
+<div class="timer-screen">
+
+    <!-- Preset selector -->
+    <div class="preset-row">
+        <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">Préréglage cible</MudText>
+        <div class="d-flex flex-wrap" style="gap:6px;">
+            @foreach (var p in _presets)
+            {
+                <MudChip T="string" Size="Size.Small"
+                         Variant="@(_targetSeconds == p.Seconds ? Variant.Filled : Variant.Outlined)"
+                         Color="@(_targetSeconds == p.Seconds ? Color.Primary : Color.Default)"
+                         OnClick="@(() => SelectPreset(p.Seconds))">
+                    @p.Label
+                </MudChip>
+            }
+        </div>
+    </div>
+
+    <!-- Animated cup -->
+    <div class="cup-wrap">
+        <svg viewBox="0 0 220 260" xmlns="http://www.w3.org/2000/svg" class="cup">
+            <!-- Soucoupe -->
+            <ellipse cx="110" cy="240" rx="90" ry="6" fill="var(--coffee-text-soft)" opacity="0.2"/>
+
+            <!-- Vapeur -->
+            <g class="steam-group" opacity="@(_running ? 0.55 : 0)">
+                <path class="steam s1" d="M 80 80 C 70 60 90 50 80 30 C 70 10 90 0 80 -20"
+                      fill="none" stroke="var(--coffee-text-soft)" stroke-width="2.5" stroke-linecap="round" />
+                <path class="steam s2" d="M 110 80 C 100 60 120 50 110 30 C 100 10 120 0 110 -20"
+                      fill="none" stroke="var(--coffee-text-soft)" stroke-width="2.5" stroke-linecap="round" />
+                <path class="steam s3" d="M 140 80 C 130 60 150 50 140 30 C 130 10 150 0 140 -20"
+                      fill="none" stroke="var(--coffee-text-soft)" stroke-width="2.5" stroke-linecap="round" />
+            </g>
+
+            <!-- Anse -->
+            <path d="M 175 130 Q 215 130 215 165 Q 215 200 175 200"
+                  fill="none" stroke="var(--coffee-accent)" stroke-width="6" stroke-linecap="round" />
+
+            <!-- Liquide (clippé par l'intérieur de la tasse) -->
+            <defs>
+                <clipPath id="cupClip">
+                    <path d="M 38 102 L 38 200 Q 38 230 70 230 L 150 230 Q 182 230 182 200 L 182 102 Z" />
+                </clipPath>
+                <linearGradient id="coffeeGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#5a3a1d" />
+                    <stop offset="100%" stop-color="#241510" />
+                </linearGradient>
+            </defs>
+            <rect x="0" y="@LiquidY.ToString("0.#", _inv)" width="220"
+                  height="@LiquidHeight.ToString("0.#", _inv)"
+                  fill="url(#coffeeGrad)" clip-path="url(#cupClip)"
+                  style="transition: y .3s linear, height .3s linear;" />
+
+            <!-- Reflet du liquide -->
+            @if (Progress > 0.02)
+            {
+                <ellipse cx="110" cy="@LiquidY.ToString("0.#", _inv)" rx="58" ry="3.5"
+                         fill="#7d5128" opacity="0.6"
+                         clip-path="url(#cupClip)" />
+            }
+
+            <!-- Tasse (par-dessus pour cacher le débordement) -->
+            <path d="M 35 100 L 35 200 Q 35 232 70 232 L 150 232 Q 185 232 185 200 L 185 100 Z"
+                  fill="none" stroke="var(--coffee-accent)" stroke-width="6" stroke-linejoin="round" />
+        </svg>
+    </div>
+
+    <!-- Digital timer -->
+    <div class="timer-display">@FormatTimer(Elapsed)</div>
+    <div class="timer-target">/ @FormatTimer(TimeSpan.FromSeconds(_targetSeconds)) cible</div>
+
+    <!-- Controls -->
+    <div class="controls">
+        @if (_running)
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.Pause"
+                           Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large"
+                           OnClick="Pause" aria-label="Pause" />
+        }
+        else
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
+                           Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large"
+                           OnClick="Start" aria-label="Démarrer" />
+        }
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                       Color="Color.Default" Size="Size.Large"
+                       OnClick="Reset" aria-label="Réinitialiser"
+                       Disabled="@(!_running && _accumulated == TimeSpan.Zero)" />
+    </div>
+
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-4"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="@(() => Nav.NavigateTo("brews/new"))">
+        Créer un nouveau brew
+    </MudButton>
+</div>
+
+<style>
+    .timer-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 0 24px 0;
+    }
+    .preset-row { width: 100%; max-width: 360px; margin-bottom: 12px; }
+
+    .cup-wrap {
+        width: 220px;
+        height: 260px;
+        margin: 8px 0;
+        overflow: visible;
+    }
+    .cup { width: 100%; height: 100%; overflow: visible; }
+
+    .timer-display {
+        font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+        font-size: 56px;
+        font-weight: 700;
+        color: var(--coffee-text);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 1px;
+        line-height: 1;
+        margin-top: 4px;
+    }
+    .timer-target {
+        color: var(--coffee-text-dim);
+        font-size: 13px;
+        margin-bottom: 16px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .controls {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+    }
+
+    /* Animation vapeur */
+    @@keyframes steamRise {
+        0%   { transform: translateY(0) scaleY(1);   opacity: 0;   }
+        20%  {                                       opacity: 0.55; }
+        80%  {                                       opacity: 0.4;  }
+        100% { transform: translateY(-30px) scaleY(1.1); opacity: 0; }
+    }
+    .steam-group .steam {
+        transform-origin: center bottom;
+        animation: steamRise 3s ease-out infinite;
+    }
+    .steam-group .s2 { animation-delay: 1s; }
+    .steam-group .s3 { animation-delay: 2s; }
+    .steam-group { transition: opacity .4s ease; }
+</style>
+
+@code {
+    private record Preset(string Label, int Seconds);
+
+    private readonly Preset[] _presets =
+    {
+        new("Espresso 30s",  30),
+        new("AeroPress 1:30", 90),
+        new("V60 3:00",      180),
+        new("Chemex 4:00",   240),
+        new("French press 4:00", 240),
+        new("Cold brew",     600)
+    };
+
+    private int _targetSeconds = 180;
+    private System.Timers.Timer? _ticker;
+    private DateTime _startedAt;
+    private TimeSpan _accumulated = TimeSpan.Zero;
+    private bool _running;
+    private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    private TimeSpan Elapsed => _running
+        ? _accumulated + (DateTime.Now - _startedAt)
+        : _accumulated;
+
+    private double Progress => Math.Clamp(
+        Elapsed.TotalSeconds / Math.Max(1, _targetSeconds),
+        0.0, 1.0);
+
+    // SVG : intérieur de la tasse de y=102 (haut) à y=230 (bas).
+    private double LiquidY => 230 - (230 - 102) * Progress;
+    private double LiquidHeight => (230 - 102) * Progress;
+
+    private static string FormatTimer(TimeSpan t)
+        => $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
+
+    private void SelectPreset(int seconds) => _targetSeconds = seconds;
+
+    private void Start()
+    {
+        if (_running) return;
+        _startedAt = DateTime.Now;
+        _running = true;
+
+        if (_ticker is null)
+        {
+            _ticker = new System.Timers.Timer(250) { AutoReset = true };
+            _ticker.Elapsed += (_, _) => InvokeAsync(StateHasChanged);
+        }
+        _ticker.Start();
+    }
+
+    private void Pause()
+    {
+        if (!_running) return;
+        _accumulated += DateTime.Now - _startedAt;
+        _running = false;
+        _ticker?.Stop();
+    }
+
+    private void Reset()
+    {
+        _ticker?.Stop();
+        _accumulated = TimeSpan.Zero;
+        _running = false;
+    }
+
+    public void Dispose()
+    {
+        _ticker?.Stop();
+        _ticker?.Dispose();
+    }
+}
