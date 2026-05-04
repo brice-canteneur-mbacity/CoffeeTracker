@@ -62,5 +62,5 @@
     [Parameter] public string? BackUrl { get; set; }
     [Parameter] public RenderFragment? Action { get; set; }
 
-    private void GoBack() => Nav.NavigateTo(BackUrl ?? "/");
+    private void GoBack() => Nav.NavigateTo(BackUrl ?? string.Empty);
 }

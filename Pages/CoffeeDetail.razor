@@ -8,12 +8,12 @@
 
 <PageHeader Title="@(_coffee?.Name ?? "Café")"
             Subtitle="@(_coffee?.Roaster ?? string.Empty)"
-            Back="true" BackUrl="/coffees">
+            Back="true" BackUrl="coffees">
     <Action>
         @if (_coffee is not null)
         {
             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Medium"
-                           OnClick="@(() => Nav.NavigateTo($"/coffees/{Id}/edit"))" />
+                           OnClick="@(() => Nav.NavigateTo($"coffees/{Id}/edit"))" />
         }
     </Action>
 </PageHeader>
@@ -176,7 +176,7 @@ else
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
                            Size="Size.Small"
-                           OnClick="@(() => Nav.NavigateTo($"/brews/new?coffeeId={Id}"))">Ajouter</MudButton>
+                           OnClick="@(() => Nav.NavigateTo($"brews/new?coffeeId={Id}"))">Ajouter</MudButton>
             </div>
             @if (_brews.Count > 0)
             {
@@ -207,7 +207,7 @@ else
                 <MudList T="Brew" Class="pa-0">
                     @foreach (var b in _brews)
                     {
-                        <MudListItem T="Brew" OnClick="@(() => Nav.NavigateTo($"/brews/{b.Id}/edit"))" Class="px-2">
+                        <MudListItem T="Brew" OnClick="@(() => Nav.NavigateTo($"brews/{b.Id}/edit"))" Class="px-2">
                             <div class="d-flex align-center" style="gap:12px;">
                                 <div class="thumb-sm thumb-placeholder">
                                     <MudIcon Icon="@Icons.Material.Filled.LocalCafe" Size="Size.Small" />
@@ -369,7 +369,7 @@ else
         _loading = false;
     }
 
-    private void GoDuplicate(int brewId) => Nav.NavigateTo($"/brews/new?fromBrewId={brewId}");
+    private void GoDuplicate(int brewId) => Nav.NavigateTo($"brews/new?fromBrewId={brewId}");
 
     private decimal? CostPerGram =>
         _coffee?.Price is decimal price && _coffee?.WeightGrams is int weight && weight > 0
@@ -420,6 +420,6 @@ else
         foreach (var bId in related) await Db.Brews.Delete(bId);
         await Db.Coffees.Delete(Id);
         Snackbar.Add("Café supprimé", Severity.Info);
-        Nav.NavigateTo("/coffees");
+        Nav.NavigateTo("coffees");
     }
 }

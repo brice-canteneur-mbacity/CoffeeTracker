@@ -59,11 +59,11 @@
 
     private readonly NavItem[] _items =
     {
-        new("/coffees", "Cafés", Icons.Material.Filled.Coffee),
-        new("/brews", "Brews", Icons.Material.Filled.LocalCafe),
-        new("/machines", "Machines", Icons.Material.Filled.CoffeeMaker),
-        new("/shops", "Shops", Icons.Material.Filled.Storefront),
-        new("/stats", "Stats", Icons.Material.Filled.BarChart)
+        new("coffees", "Cafés", Icons.Material.Filled.Coffee),
+        new("brews", "Brews", Icons.Material.Filled.LocalCafe),
+        new("machines", "Machines", Icons.Material.Filled.CoffeeMaker),
+        new("shops", "Shops", Icons.Material.Filled.Storefront),
+        new("stats", "Stats", Icons.Material.Filled.BarChart)
     };
 
     protected override void OnInitialized()
@@ -83,8 +83,9 @@
 
     private bool IsActive(string path)
     {
-        var current = "/" + Nav.ToBaseRelativePath(Nav.Uri).TrimEnd('/');
-        if (path == "/coffees" && (current == "/" || current == "")) return true;
+        // ToBaseRelativePath returns the path AFTER the base href, e.g. "coffees/5/edit" or "" at root.
+        var current = Nav.ToBaseRelativePath(Nav.Uri).TrimEnd('/');
+        if (path == "coffees" && current.Length == 0) return true;
         return current.StartsWith(path, StringComparison.OrdinalIgnoreCase);
     }
 }

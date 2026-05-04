@@ -16,7 +16,7 @@
                        Color="Color.Primary"
                        Variant="Variant.Filled"
                        Size="Size.Medium"
-                       OnClick="@(() => Nav.NavigateTo("/shops/new"))" />
+                       OnClick="@(() => Nav.NavigateTo("shops/new"))" />
     </Action>
 </PageHeader>
 
@@ -73,7 +73,7 @@ else
                 <MudText Class="mb-4 mud-text-secondary">Note les cafés que tu bois en boutique.</MudText>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
-                           OnClick="@(() => Nav.NavigateTo("/shops/new"))">Ajouter une visite</MudButton>
+                           OnClick="@(() => Nav.NavigateTo("shops/new"))">Ajouter une visite</MudButton>
             }
         </MudPaper>
     }
@@ -83,7 +83,7 @@ else
         @foreach (var v in filtered)
         {
             <MudPaper Class="pa-3 shop-card" Elevation="0"
-                      @onclick="@(() => Nav.NavigateTo($"/shops/{v.Id}/edit"))">
+                      @onclick="@(() => Nav.NavigateTo($"shops/{v.Id}/edit"))">
                 <div class="d-flex" style="gap:12px;">
                     @if (!string.IsNullOrEmpty(v.PhotoDataUrl))
                     {

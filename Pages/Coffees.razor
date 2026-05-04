@@ -11,7 +11,7 @@
                        Color="Color.Primary"
                        Variant="Variant.Filled"
                        Size="Size.Medium"
-                       OnClick="@(() => Nav.NavigateTo("/coffees/new"))" />
+                       OnClick="@(() => Nav.NavigateTo("coffees/new"))" />
     </Action>
 </PageHeader>
 
@@ -60,7 +60,7 @@ else
                     <MudText Class="mb-4 mud-text-secondary">Ajoute ton premier sac.</MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Add"
-                               OnClick="@(() => Nav.NavigateTo("/coffees/new"))">Ajouter un café</MudButton>
+                               OnClick="@(() => Nav.NavigateTo("coffees/new"))">Ajouter un café</MudButton>
                 }
                 else if (_tabIndex == 2)
                 {
@@ -75,7 +75,7 @@ else
             @foreach (var c in list)
             {
                 <MudPaper Class="pa-3 coffee-card" Elevation="0"
-                          @onclick="@(() => Nav.NavigateTo($"/coffees/{c.Id}"))">
+                          @onclick="@(() => Nav.NavigateTo($"coffees/{c.Id}"))">
                     <div class="d-flex" style="gap:12px;">
                         @if (!string.IsNullOrEmpty(c.PhotoDataUrl))
                         {

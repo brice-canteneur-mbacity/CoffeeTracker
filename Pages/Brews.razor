@@ -10,7 +10,7 @@
                        Color="Color.Primary"
                        Variant="Variant.Filled"
                        Size="Size.Medium"
-                       OnClick="@(() => Nav.NavigateTo("/brews/new"))" />
+                       OnClick="@(() => Nav.NavigateTo("brews/new"))" />
     </Action>
 </PageHeader>
 
@@ -52,7 +52,7 @@ else
                 <MudText Class="mb-4 mud-text-secondary">Garde une trace de tes préparations.</MudText>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
-                           OnClick="@(() => Nav.NavigateTo("/brews/new"))">Ajouter un brew</MudButton>
+                           OnClick="@(() => Nav.NavigateTo("brews/new"))">Ajouter un brew</MudButton>
             }
         </MudPaper>
     }
@@ -64,7 +64,7 @@ else
             var coffee = _coffeesById.GetValueOrDefault(b.CoffeeId);
             var ratio = string.IsNullOrEmpty(b.Ratio) ? Format.Ratio(b.DoseG, b.YieldG) : b.Ratio;
             <MudPaper Class="pa-3 brew-card" Elevation="0"
-                      @onclick="@(() => Nav.NavigateTo($"/brews/{b.Id}/edit"))">
+                      @onclick="@(() => Nav.NavigateTo($"brews/{b.Id}/edit"))">
                 <div class="d-flex" style="gap:12px;">
                     <div class="thumb-md thumb-placeholder">
                         <MudIcon Icon="@Icons.Material.Filled.LocalCafe" />
@@ -143,5 +143,5 @@ else
         _loading = false;
     }
 
-    private void GoDuplicate(int brewId) => Nav.NavigateTo($"/brews/new?fromBrewId={brewId}");
+    private void GoDuplicate(int brewId) => Nav.NavigateTo($"brews/new?fromBrewId={brewId}");
 }

@@ -9,7 +9,7 @@
 
 <PageTitle>@(IsEdit ? "Modifier la visite" : "Nouvelle visite")</PageTitle>
 
-<PageHeader Title="@(IsEdit ? "Modifier la visite" : "Nouvelle visite")" Back="true" BackUrl="/shops" />
+<PageHeader Title="@(IsEdit ? "Modifier la visite" : "Nouvelle visite")" Back="true" BackUrl="shops" />
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync">
     <DataAnnotationsValidator />
@@ -330,7 +330,7 @@
                 await Db.ShopVisits.Add(_model);
                 Snackbar.Add("Visite créée", Severity.Success);
             }
-            Nav.NavigateTo("/shops");
+            Nav.NavigateTo("shops");
         }
         catch (Exception ex)
         {
@@ -398,6 +398,6 @@
         if (ok != true || Id is null) return;
         await Db.ShopVisits.Delete(Id.Value);
         Snackbar.Add("Visite supprimée", Severity.Info);
-        Nav.NavigateTo("/shops");
+        Nav.NavigateTo("shops");
     }
 }

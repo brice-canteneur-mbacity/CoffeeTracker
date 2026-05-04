@@ -10,7 +10,7 @@
                        Color="Color.Primary"
                        Variant="Variant.Filled"
                        Size="Size.Medium"
-                       OnClick="@(() => Nav.NavigateTo("/machines/new"))" />
+                       OnClick="@(() => Nav.NavigateTo("machines/new"))" />
     </Action>
 </PageHeader>
 
@@ -26,7 +26,7 @@ else if (_machines.Count == 0)
         <MudText Class="mb-4 mud-text-secondary">Ajoute ton matos : machine espresso, moulin, bouilloire…</MudText>
         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="@(() => Nav.NavigateTo("/machines/new"))">Ajouter une machine</MudButton>
+                   OnClick="@(() => Nav.NavigateTo("machines/new"))">Ajouter une machine</MudButton>
     </MudPaper>
 }
 else
@@ -35,7 +35,7 @@ else
         @foreach (var m in _machines)
         {
             <MudPaper Class="pa-3 machine-card" Elevation="0"
-                      @onclick="@(() => Nav.NavigateTo($"/machines/{m.Id}/edit"))">
+                      @onclick="@(() => Nav.NavigateTo($"machines/{m.Id}/edit"))">
                 <div class="d-flex" style="gap:12px;">
                     @if (!string.IsNullOrEmpty(m.PhotoDataUrl))
                     {

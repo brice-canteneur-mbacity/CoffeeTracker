@@ -7,7 +7,7 @@
 
 <PageTitle>@(IsEdit ? "Modifier le brew" : "Nouveau brew")</PageTitle>
 
-<PageHeader Title="@(IsEdit ? "Modifier le brew" : "Nouveau brew")" Back="true" BackUrl="/brews" />
+<PageHeader Title="@(IsEdit ? "Modifier le brew" : "Nouveau brew")" Back="true" BackUrl="brews" />
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync">
     <DataAnnotationsValidator />
@@ -150,7 +150,7 @@
         {
             <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
                        StartIcon="@Icons.Material.Filled.Replay"
-                       OnClick="@(() => Nav.NavigateTo($"/brews/new?fromBrewId={Id}"))">
+                       OnClick="@(() => Nav.NavigateTo($"brews/new?fromBrewId={Id}"))">
                 Refaire ce brew
             </MudButton>
 
@@ -328,7 +328,7 @@
                 await Db.Brews.Add(_model);
                 Snackbar.Add("Brew créé", Severity.Success);
             }
-            Nav.NavigateTo("/brews");
+            Nav.NavigateTo("brews");
         }
         catch (Exception ex)
         {
@@ -352,6 +352,6 @@
         if (ok != true || Id is null) return;
         await Db.Brews.Delete(Id.Value);
         Snackbar.Add("Brew supprimé", Severity.Info);
-        Nav.NavigateTo("/brews");
+        Nav.NavigateTo("brews");
     }
 }

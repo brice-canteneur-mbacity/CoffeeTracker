@@ -70,7 +70,7 @@ window.coffeeMap = (function () {
           ${coffee}
           <div class="coffee-popup-stars">${stars}</div>
           <div class="coffee-popup-date">${escapeHtml(v.dateLabel || '')}</div>
-          <a class="coffee-popup-link" href="/shops/${v.id}/edit">Modifier ›</a>
+          <a class="coffee-popup-link" href="shops/${v.id}/edit">Modifier ›</a>
         </div>`;
       const marker = L.marker([v.latitude, v.longitude], { icon: makeIcon(r) }).bindPopup(popup);
       entry.layer.addLayer(marker);

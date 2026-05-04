@@ -37,9 +37,22 @@ Items classés par ordre de priorité. ☑ = fait, ▶ = en cours, ⬜ = à fair
 
 - ☑ **15. Déployer l'app sur GitHub Pages** — workflow `.github/workflows/deploy.yml` qui à chaque push sur `master` : publish Blazor WASM, patch `<base href="/CoffeeTracker/">`, génère `404.html` (fallback SPA) et `.nojekyll`, deploy via `actions/deploy-pages@v4`. URL prod : `https://brice-canteneur-mbacity.github.io/CoffeeTracker/`
 
+## Multi-appareil
+
+- ⬜ **16. Sync entre appareils via GitHub Gist** — Réglages : champ pour un Personal Access Token GitHub (scope `gist`). L'app crée un Gist privé `coffee-tracker-data` au premier sync, push/pull du JSON complet (cafés, brews, visites, machines). Sync auto à l'ouverture + bouton « Synchroniser maintenant ». Stratégie last-write-wins (suffit pour usage solo). Versioning historique gratuit côté Gist. Indicateur dans la nav : *« ✓ synchronisé il y a Xmin »*.
+
+## UX & confort
+
+- ⬜ **17. Mode sombre** — Toggle dans Réglages (suit aussi `prefers-color-scheme` par défaut). MudBlazor supporte nativement via `MudThemeProvider` qui prend un `Theme` clair + `Theme` sombre. Adapter la palette café pour la version sombre (coffee-100/200 pour les fonds, coffee-50 pour le texte). Mettre à jour les styles maison (`.bottom-nav`, popups Leaflet, marqueurs map…) pour suivre.
+- ⬜ **18. Notifications PWA proactives** — Web Push API (gratuit, fonctionne hors-ligne sur Android Chrome + iOS Safari récent). Cas d'usage : « Stock bas sur \<café\> » (≤ 30g restants), « Café \<X\> sort de la fenêtre optimale dans 3 jours », « Café \<Y\> au-delà du pic depuis hier ». Permissions demandées au 1er paramétrage. Évaluation périodique des règles via un Service Worker `periodicsync` (avec fallback sur évaluation à l'ouverture si l'API n'est pas dispo).
+
+## Features coffee-geek (suite)
+
+- ⬜ **19. Vue comparaison de brews côte-à-côte** — sur la fiche d'un café, sélection de 2 brews (cases à cocher) → bouton « Comparer » → vue diff montrant pour chaque champ les deux valeurs, les écarts mis en évidence (mouture changée, ratio différent, score qui a bougé). Très utile pour comprendre l'effet d'une variable ajustée.
+
 ---
 
 **Hors scope MVP, à reconsidérer plus tard :**
-- Sync cloud / multi-appareil (nécessite backend → coût d'infra)
+- Cupping form structuré SCA (acidité/corps/sucrosité/finale en sliders)
 - Scan photo de paquet via LLM vision (coût API, abandonné)
 - Publication app stores (PWABuilder)

@@ -7,7 +7,7 @@
 
 <PageTitle>@(IsEdit ? "Modifier le café" : "Nouveau café")</PageTitle>
 
-<PageHeader Title="@(IsEdit ? "Modifier le café" : "Nouveau café")" Back="true" BackUrl="@(IsEdit ? $"/coffees/{Id}" : "/coffees")" />
+<PageHeader Title="@(IsEdit ? "Modifier le café" : "Nouveau café")" Back="true" BackUrl="@(IsEdit ? $"coffees/{Id}" : "coffees")" />
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync">
     <DataAnnotationsValidator />
@@ -210,7 +210,7 @@
                 _model.Id = Id!.Value;
                 await Db.Coffees.Put(_model);
                 Snackbar.Add("Café enregistré", Severity.Success);
-                Nav.NavigateTo($"/coffees/{Id}");
+                Nav.NavigateTo($"coffees/{Id}");
             }
             else
             {
@@ -218,7 +218,7 @@
                 _model.Id = 0;
                 var newId = await Db.Coffees.Add(_model);
                 Snackbar.Add("Café créé", Severity.Success);
-                Nav.NavigateTo($"/coffees/{newId}");
+                Nav.NavigateTo($"coffees/{newId}");
             }
         }
         catch (Exception ex)
