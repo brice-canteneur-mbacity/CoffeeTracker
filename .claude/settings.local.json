@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build *)"
+      "Bash(dotnet build *)",
+      "Bash(where magick *)",
+      "Bash(where convert *)",
+      "Bash(where inkscape *)",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"D:\\\\bcanteneur\\\\Documents\\\\GitHub\\\\coffee\\\\tools\\\\generate-icons.ps1\")"
     ]
   }
 }
