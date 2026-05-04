@@ -1,4 +1,6 @@
+@implements IDisposable
 @inject NavigationManager Nav
+@inject SyncService Sync
 
 <div class="page-header">
     @if (Back)
@@ -12,6 +14,18 @@
             <MudText Typo="Typo.body2" Class="page-header-subtitle">@Subtitle</MudText>
         }
     </div>
+    @if (Sync.IsConfigured)
+    {
+        <MudTooltip Text="@SyncTooltip" Placement="Placement.Bottom">
+            <MudIconButton Icon="@SyncIcon"
+                           Color="@SyncColor"
+                           Size="Size.Small"
+                           OnClick="OnSyncClickAsync"
+                           Disabled="Sync.IsBusy"
+                           Class="@($"page-header-sync {(Sync.IsBusy ? "is-syncing" : "")}")"
+                           aria-label="Synchroniser" />
+        </MudTooltip>
+    }
     @if (Action is not null)
     {
         <div class="page-header-action">@Action</div>
@@ -25,7 +39,7 @@
         z-index: 10;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 4px;
         padding: 16px 0 12px 0;
         background: var(--header-bg);
         backdrop-filter: blur(8px);
@@ -53,6 +67,13 @@
     .page-header-action {
         flex-shrink: 0;
     }
+    .page-header-sync.is-syncing .mud-icon-root {
+        animation: page-header-sync-spin 1s linear infinite;
+    }
+    @@keyframes page-header-sync-spin {
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(360deg); }
+    }
 </style>
 
 @code {
@@ -62,5 +83,47 @@
     [Parameter] public string? BackUrl { get; set; }
     [Parameter] public RenderFragment? Action { get; set; }
 
+    protected override void OnInitialized()
+    {
+        Sync.StateChanged += OnSyncChanged;
+    }
+
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Sync.StateChanged -= OnSyncChanged;
+
     private void GoBack() => Nav.NavigateTo(BackUrl ?? string.Empty);
+
+    private string SyncIcon => Sync.IsBusy
+        ? Icons.Material.Filled.Sync
+        : (Sync.LastError != null
+            ? Icons.Material.Filled.SyncProblem
+            : Icons.Material.Filled.CloudDone);
+
+    private Color SyncColor => Sync.IsBusy
+        ? Color.Primary
+        : (Sync.LastError != null ? Color.Error : Color.Default);
+
+    private string SyncTooltip
+    {
+        get
+        {
+            if (Sync.IsBusy) return "Synchronisation en cours…";
+            if (Sync.LastError is not null) return $"Erreur sync : {Sync.LastError}";
+            if (Sync.LastSync is DateTime ls)
+            {
+                var ago = DateTime.UtcNow - ls;
+                if (ago.TotalSeconds < 60) return "Synchronisé à l'instant";
+                if (ago.TotalMinutes < 60) return $"Synchronisé il y a {(int)ago.TotalMinutes} min";
+                if (ago.TotalHours < 24) return $"Synchronisé il y a {(int)ago.TotalHours} h";
+                return $"Dernière sync : {ls.ToLocalTime():dd/MM HH:mm}";
+            }
+            return "Synchroniser maintenant";
+        }
+    }
+
+    private async Task OnSyncClickAsync()
+    {
+        await Sync.SyncAsync();
+    }
 }

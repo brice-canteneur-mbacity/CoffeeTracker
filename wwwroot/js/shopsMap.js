@@ -36,8 +36,18 @@ window.coffeeMap = (function () {
     if (!el) return;
 
     // Default view: roughly centered on France at low zoom.
-    const map = L.map(el, { zoomControl: true, attributionControl: true })
+    // Zoom control désactivé par défaut, on en ajoute un avec libellés français.
+    const map = L.map(el, { zoomControl: false, attributionControl: true })
       .setView([46.5, 2.5], 5);
+
+    L.control.zoom({
+      position: 'topleft',
+      zoomInTitle: 'Zoomer',
+      zoomOutTitle: 'Dézoomer'
+    }).addTo(map);
+
+    // Préfixe d'attribution (par défaut « Leaflet ») en français.
+    map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank">Leaflet</a>');
 
     // CARTO Positron — fond clair épuré, gratuit, attribution OSM + CARTO requise.
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -45,6 +55,12 @@ window.coffeeMap = (function () {
       subdomains: 'abcd',
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OSM</a> &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>'
     }).addTo(map);
+
+    // Tooltip du bouton de fermeture des popups en français (l'option n'est pas exposée).
+    map.on('popupopen', (e) => {
+      const btn = e.popup && e.popup._closeButton;
+      if (btn) btn.setAttribute('title', 'Fermer');
+    });
 
     const layer = L.layerGroup().addTo(map);
     _maps.set(elementId, { map, layer });

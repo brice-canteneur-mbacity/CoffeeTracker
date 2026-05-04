@@ -198,7 +198,9 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         }
     }
 
-    /// <summary>Pull : récupère le Gist et écrase les données locales.</summary>
+    /// <summary>Pull : récupère le Gist et écrase les données locales.
+    /// Si le Gist stocké localement n'existe plus, on cherche automatiquement un autre Gist
+    /// du compte avant d'abandonner.</summary>
     public async Task<bool> PullAsync()
     {
         if (!IsConfigured) return false;
@@ -210,35 +212,28 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         StateChanged?.Invoke();
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/gists/{GistId}");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Pat);
-            request.Headers.UserAgent.ParseAdd("CoffeeTracker");
-            request.Headers.Accept.ParseAdd("application/vnd.github+json");
+            var data = await TryFetchGistAsync(GistId);
 
-            var response = await _http.SendAsync(request);
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                // Gist supprimé côté GitHub — on oublie l'ID local et on attendra un nouveau push.
-                GistId = null;
-                await RemoveItem(GistIdKey);
-                LastError = "Gist introuvable côté GitHub — sera recréé au prochain push.";
-                return false;
-            }
-            response.EnsureSuccessStatusCode();
-
-            var body = await response.Content.ReadAsStringAsync();
-            var gist = JsonSerializer.Deserialize<GistResponse>(body, ImportOptions);
-            var content = gist?.Files?.GetValueOrDefault(GistFilename)?.Content;
-            if (string.IsNullOrEmpty(content))
-            {
-                LastError = "Le Gist ne contient pas le fichier attendu.";
-                return false;
-            }
-
-            var data = JsonSerializer.Deserialize<CoffeeBackup>(content, ImportOptions);
             if (data is null)
             {
-                LastError = "Données corrompues dans le Gist.";
+                // Gist actuel inaccessible (404, supprimé, ou PAT changé) :
+                // on tente la découverte automatique d'un autre Gist du compte.
+                var previousId = GistId;
+                GistId = null;
+                await RemoveItem(GistIdKey);
+
+                var found = await FindExistingGistAsync();
+                if (!string.IsNullOrEmpty(found) && found != previousId)
+                {
+                    GistId = found;
+                    await SetItem(GistIdKey, found);
+                    data = await TryFetchGistAsync(found);
+                }
+            }
+
+            if (data is null)
+            {
+                LastError = "Aucun Gist exploitable — un nouveau sera créé au prochain push.";
                 return false;
             }
 
@@ -258,6 +253,33 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         {
             IsBusy = false;
             StateChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Tente de récupérer le contenu d'un Gist. Retourne null si 404 / vide / erreur réseau.</summary>
+    private async Task<CoffeeBackup?> TryFetchGistAsync(string id)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/gists/{id}");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Pat);
+            request.Headers.UserAgent.ParseAdd("CoffeeTracker");
+            request.Headers.Accept.ParseAdd("application/vnd.github+json");
+
+            var response = await _http.SendAsync(request);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+            if (!response.IsSuccessStatusCode) return null;
+
+            var body = await response.Content.ReadAsStringAsync();
+            var gist = JsonSerializer.Deserialize<GistResponse>(body, ImportOptions);
+            var content = gist?.Files?.GetValueOrDefault(GistFilename)?.Content;
+            if (string.IsNullOrEmpty(content)) return null;
+
+            return JsonSerializer.Deserialize<CoffeeBackup>(content, ImportOptions);
+        }
+        catch
+        {
+            return null;
         }
     }
 
