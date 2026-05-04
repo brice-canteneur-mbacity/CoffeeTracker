@@ -16,5 +16,8 @@ builder.Services.AddMudServices();
 builder.Services.AddBlazorDexie();
 builder.Services.AddScoped<CoffeeDb>();
 builder.Services.AddScoped<PlaceSearchService>();
+builder.Services.AddScoped<ThemeService>();
+builder.Services.AddScoped<SyncService>();
+builder.Services.AddScoped<AlertsService>();
 
 await builder.Build().RunAsync();

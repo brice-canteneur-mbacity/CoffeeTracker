@@ -40,7 +40,7 @@ else
     if (filtered.Count == 0)
     {
         <MudPaper Class="pa-8 d-flex flex-column align-center" Elevation="0">
-            <MudIcon Icon="@Icons.Material.Filled.LocalCafe" Size="Size.Large" Class="mb-3" Style="color:#a06d3b" />
+            <MudIcon Icon="@Icons.Material.Filled.LocalCafe" Size="Size.Large" Class="mb-3" Style="color: var(--coffee-accent-soft)" />
             @if (hasSearch)
             {
                 <MudText Typo="Typo.h6">Aucun résultat</MudText>
@@ -103,10 +103,10 @@ else
 }
 
 <style>
-    .brew-card { border: 1px solid #f0e7d8; cursor: pointer; transition: transform .08s; }
+    .brew-card { border: 1px solid var(--coffee-border); cursor: pointer; transition: transform .08s; }
     .brew-card:active { transform: scale(.99); }
     .thumb-md { width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0; }
-    .thumb-placeholder { background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b; }
+    .thumb-placeholder { background: var(--coffee-surface-soft); display: flex; align-items: center; justify-content: center; color: var(--coffee-accent-soft); }
 </style>
 
 @code {

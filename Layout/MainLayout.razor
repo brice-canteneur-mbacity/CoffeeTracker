@@ -1,4 +1,6 @@
 @inherits LayoutComponentBase
+@inject AlertsService Alerts
+@inject ISnackbar Snackbar
 
 <MudLayout>
     <MudMainContent Class="pt-2">
@@ -9,3 +11,40 @@
     </MudMainContent>
     <BottomNav />
 </MudLayout>
+
+@code {
+    private static bool _alertsEvaluated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Évaluation des alertes une seule fois par session.
+        if (_alertsEvaluated) return;
+        _alertsEvaluated = true;
+
+        try
+        {
+            var list = await Alerts.EvaluateAsync();
+            if (list.Count == 0) return;
+
+            var systemEnabled = await Alerts.IsEnabledAsync()
+                && (await Alerts.GetPermissionAsync()) == "granted";
+
+            foreach (var a in list)
+            {
+                var severity = a.Severity switch
+                {
+                    AlertSeverity.Error => Severity.Error,
+                    AlertSeverity.Warning => Severity.Warning,
+                    _ => Severity.Info
+                };
+                Snackbar.Add($"{a.Title} — {a.Message}", severity, opt => opt.RequireInteraction = false);
+
+                if (systemEnabled) await Alerts.ShowSystemAsync(a);
+            }
+        }
+        catch
+        {
+            // L'évaluation des alertes ne doit jamais bloquer le rendu de la page.
+        }
+    }
+}

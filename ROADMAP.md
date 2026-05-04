@@ -39,16 +39,16 @@ Items classés par ordre de priorité. ☑ = fait, ▶ = en cours, ⬜ = à fair
 
 ## Multi-appareil
 
-- ⬜ **16. Sync entre appareils via GitHub Gist** — Réglages : champ pour un Personal Access Token GitHub (scope `gist`). L'app crée un Gist privé `coffee-tracker-data` au premier sync, push/pull du JSON complet (cafés, brews, visites, machines). Sync auto à l'ouverture + bouton « Synchroniser maintenant ». Stratégie last-write-wins (suffit pour usage solo). Versioning historique gratuit côté Gist. Indicateur dans la nav : *« ✓ synchronisé il y a Xmin »*.
+- ☑ **16. Sync entre appareils via GitHub Gist** — Réglages → champ Personal Access Token GitHub (scope `gist`). L'app crée un Gist privé au premier sync, push/pull du JSON complet (cafés, brews, visites, machines). Auto-pull au démarrage + bouton « Synchroniser maintenant » (pull puis push, last-write-wins).
 
 ## UX & confort
 
-- ⬜ **17. Mode sombre** — Toggle dans Réglages (suit aussi `prefers-color-scheme` par défaut). MudBlazor supporte nativement via `MudThemeProvider` qui prend un `Theme` clair + `Theme` sombre. Adapter la palette café pour la version sombre (coffee-100/200 pour les fonds, coffee-50 pour le texte). Mettre à jour les styles maison (`.bottom-nav`, popups Leaflet, marqueurs map…) pour suivre.
-- ⬜ **18. Notifications PWA proactives** — Web Push API (gratuit, fonctionne hors-ligne sur Android Chrome + iOS Safari récent). Cas d'usage : « Stock bas sur \<café\> » (≤ 30g restants), « Café \<X\> sort de la fenêtre optimale dans 3 jours », « Café \<Y\> au-delà du pic depuis hier ». Permissions demandées au 1er paramétrage. Évaluation périodique des règles via un Service Worker `periodicsync` (avec fallback sur évaluation à l'ouverture si l'API n'est pas dispo).
+- ☑ **17. Mode sombre** — `PaletteDark` ajouté à `CoffeeTheme`, `ThemeService` gère la préférence (système / clair / sombre) en localStorage, App.razor binde `IsDarkMode` sur `MudThemeProvider`. CSS variables coffee-* pour les composants custom (BottomNav, PageHeader, popups Leaflet, marqueurs, etc.). Toggle radio dans Réglages.
+- ☑ **18. Notifications PWA proactives** — `AlertsService` évalue les règles à l'ouverture de l'app (stock ≤ 30 g, sac vide, café > 35 j depuis torréfaction). Affichage en MudSnackbar in-app + notification système si l'utilisateur a activé l'option et accordé la permission navigateur. Pas de push à distance (impossible sans backend), mais effective dès que l'app est ouverte.
 
 ## Features coffee-geek (suite)
 
-- ⬜ **19. Vue comparaison de brews côte-à-côte** — sur la fiche d'un café, sélection de 2 brews (cases à cocher) → bouton « Comparer » → vue diff montrant pour chaque champ les deux valeurs, les écarts mis en évidence (mouture changée, ratio différent, score qui a bougé). Très utile pour comprendre l'effet d'une variable ajustée.
+- ☑ **19. Vue comparaison de brews côte-à-côte** — sur la fiche d'un café, cases à cocher sur chaque brew. Bouton « Comparer X/2 » disponible dès 2 sélectionnés → ouverture d'un `BrewCompareDialog` qui affiche les deux brews en colonnes avec les écarts surlignés.
 
 ---
 

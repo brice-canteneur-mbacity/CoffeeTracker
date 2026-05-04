@@ -18,9 +18,9 @@
     .bottom-nav {
         position: fixed;
         inset: auto 0 0 0;
-        background: rgba(255, 255, 255, 0.96);
+        background: var(--bottom-nav-bg);
         backdrop-filter: saturate(180%) blur(10px);
-        border-top: 1px solid #f6efe4;
+        border-top: 1px solid var(--coffee-border);
         padding-bottom: env(safe-area-inset-bottom);
         z-index: 1100;
         display: flex;
@@ -37,14 +37,17 @@
         padding: 10px 4px;
         background: none;
         border: none;
-        color: #b8a78f;
+        color: var(--coffee-text-dim);
         font-size: 11px;
         font-weight: 500;
         cursor: pointer;
         transition: color .15s ease;
     }
     .bottom-nav-item.active {
-        color: #3b2418;
+        color: var(--coffee-accent);
+    }
+    body.theme-dark .bottom-nav-item.active {
+        color: var(--coffee-text);
     }
     .bottom-nav-item.active .mud-icon-root {
         transform: scale(1.05);

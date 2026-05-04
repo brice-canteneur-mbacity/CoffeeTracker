@@ -1,7 +1,46 @@
+/* ---------- Coffee palette as CSS variables (light + dark) ---------- */
+:root {
+    --coffee-bg: #fdfaf6;
+    --coffee-surface: #ffffff;
+    --coffee-surface-soft: #f6efe4;
+    --coffee-border: #f0e7d8;
+    --coffee-border-strong: #e8d7be;
+    --coffee-text: #241510;
+    --coffee-text-soft: #5a3a1d;
+    --coffee-text-muted: #7a6649;
+    --coffee-text-dim: #8a7560;
+    --coffee-accent: #3b2418;
+    --coffee-accent-soft: #5a3a1d;
+    --coffee-shadow: 0 6px 24px rgba(59, 36, 24, 0.18);
+    --coffee-popup-tip-shadow: 0 4px 8px rgba(59, 36, 24, 0.12);
+    --bottom-nav-bg: rgba(255, 255, 255, 0.96);
+    --header-bg: rgba(253, 250, 246, 0.95);
+}
+
+body.theme-dark {
+    --coffee-bg: #1a100a;
+    --coffee-surface: #2a1812;
+    --coffee-surface-soft: #3b2418;
+    --coffee-border: #3b2418;
+    --coffee-border-strong: #5a3a1d;
+    --coffee-text: #fdfaf6;
+    --coffee-text-soft: #c4ad8c;
+    --coffee-text-muted: #a08e75;
+    --coffee-text-dim: #8a7560;
+    --coffee-accent: #d4b487;
+    --coffee-accent-soft: #bd8d57;
+    --coffee-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    --coffee-popup-tip-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+    --bottom-nav-bg: rgba(42, 24, 18, 0.96);
+    --header-bg: rgba(26, 16, 10, 0.95);
+}
+
 html, body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: #fdfaf6;
+    background-color: var(--coffee-bg);
+    color: var(--coffee-text);
     overscroll-behavior-y: none;
+    transition: background-color .2s ease, color .2s ease;
 }
 
 #blazor-error-ui {
@@ -85,8 +124,8 @@ html, body {
     gap: 6px;
     padding: 6px 14px;
     border-radius: 12px;
-    background: #f6efe4;
-    color: #3b2418;
+    background: var(--coffee-surface-soft);
+    color: var(--coffee-accent);
     font-weight: 500;
     font-size: 13px;
     cursor: pointer;
@@ -94,47 +133,51 @@ html, body {
     width: fit-content;
     transition: background-color .15s;
 }
-.upload-button:hover { background: #e8d7be; }
+.upload-button:hover { background: var(--coffee-border-strong); }
 .upload-button:active { transform: scale(.97); }
 
 /* ---------- Coffee map (Leaflet overrides) ---------- */
 .leaflet-container {
     font-family: 'Inter', system-ui, sans-serif;
-    background: #fdfaf6;
+    background: var(--coffee-bg);
+}
+body.theme-dark .leaflet-tile-pane {
+    /* Tuiles plus sobres en mode sombre — les rendre légèrement plus contrastées */
+    filter: brightness(0.85) saturate(0.7);
 }
 .leaflet-container a.leaflet-popup-close-button {
-    color: #8a7560;
+    color: var(--coffee-text-dim);
 }
 .leaflet-popup-content-wrapper {
-    background: #fdfaf6;
-    color: #241510;
+    background: var(--coffee-surface);
+    color: var(--coffee-text);
     border-radius: 14px;
-    box-shadow: 0 6px 24px rgba(59, 36, 24, 0.18);
+    box-shadow: var(--coffee-shadow);
 }
 .leaflet-popup-tip {
-    background: #fdfaf6;
-    box-shadow: 0 4px 8px rgba(59, 36, 24, 0.12);
+    background: var(--coffee-surface);
+    box-shadow: var(--coffee-popup-tip-shadow);
 }
 .leaflet-popup-content {
     margin: 12px 14px;
     line-height: 1.4;
 }
 .leaflet-control-attribution {
-    background: rgba(253, 250, 246, 0.85) !important;
-    color: #7a6649 !important;
+    background: var(--header-bg) !important;
+    color: var(--coffee-text-muted) !important;
     border-radius: 6px 0 0 0;
     font-size: 10px !important;
 }
 .leaflet-control-attribution a {
-    color: #5a3a1d !important;
+    color: var(--coffee-text-soft) !important;
 }
 .leaflet-bar a {
-    background: #fdfaf6 !important;
-    color: #3b2418 !important;
-    border-color: #e8d7be !important;
+    background: var(--coffee-surface) !important;
+    color: var(--coffee-accent) !important;
+    border-color: var(--coffee-border-strong) !important;
 }
 .leaflet-bar a:hover {
-    background: #f6efe4 !important;
+    background: var(--coffee-surface-soft) !important;
 }
 
 /* Custom marker (rating badge) */
@@ -143,8 +186,8 @@ html, body {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    border: 2px solid #fdfaf6;
-    box-shadow: 0 2px 8px rgba(59, 36, 24, 0.35);
+    border: 2px solid var(--coffee-bg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     color: #fdfaf6;
     font-weight: 700;
     font-size: 13px;
@@ -162,12 +205,12 @@ html, body {
 }
 .coffee-popup-title {
     font-weight: 600;
-    color: #241510;
+    color: var(--coffee-text);
     font-size: 14px;
     margin-bottom: 4px;
 }
 .coffee-popup-meta {
-    color: #7a6649;
+    color: var(--coffee-text-muted);
     font-size: 12px;
 }
 .coffee-popup-stars {
@@ -176,14 +219,14 @@ html, body {
     letter-spacing: 1px;
 }
 .coffee-popup-date {
-    color: #8a7560;
+    color: var(--coffee-text-dim);
     font-size: 11px;
     margin-top: 2px;
 }
 .coffee-popup-link {
     display: inline-block;
     margin-top: 8px;
-    color: #3b2418;
+    color: var(--coffee-accent);
     font-size: 12px;
     font-weight: 500;
     text-decoration: none;

@@ -208,7 +208,13 @@ else
                     @foreach (var b in _brews)
                     {
                         <MudListItem T="Brew" OnClick="@(() => Nav.NavigateTo($"brews/{b.Id}/edit"))" Class="px-2">
-                            <div class="d-flex align-center" style="gap:12px;">
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <span @onclick="() => ToggleSelected(b.Id)" @onclick:stopPropagation="true" @onclick:preventDefault="true">
+                                    <MudCheckBox T="bool"
+                                                 Value="@_selectedBrewIds.Contains(b.Id)"
+                                                 ValueChanged="@((bool _) => ToggleSelected(b.Id))"
+                                                 Color="Color.Primary" Size="Size.Small" Dense="true" />
+                                </span>
                                 <div class="thumb-sm thumb-placeholder">
                                     <MudIcon Icon="@Icons.Material.Filled.LocalCafe" Size="Size.Small" />
                                 </div>
@@ -239,6 +245,16 @@ else
                         </MudListItem>
                     }
                 </MudList>
+                @if (_brews.Count >= 2)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Compare"
+                               Disabled="@(_selectedBrewIds.Count != 2)"
+                               OnClick="OpenCompareAsync"
+                               Class="mt-3">
+                        Comparer @_selectedBrewIds.Count/2 brews sélectionnés
+                    </MudButton>
+                }
             }
         </MudPaper>
         }
@@ -282,7 +298,7 @@ else
         width: 36px; height: 36px; border-radius: 10px;
     }
     .thumb-placeholder {
-        background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b;
+        background: var(--coffee-surface-soft); display: flex; align-items: center; justify-content: center; color: var(--coffee-accent-soft);
     }
     .degas-track {
         position: relative;
@@ -323,6 +339,8 @@ else
     private bool _loading = true;
     private Coffee? _coffee;
     private List<Brew> _brews = new();
+    private Dictionary<int, Machine> _machinesById = new();
+    private readonly HashSet<int> _selectedBrewIds = new();
     private List<ChartSeries<double>>? _chartSeries;
     private string[] _chartLabels = Array.Empty<string>();
     private readonly LineChartOptions _chartOptions = new()
@@ -340,11 +358,14 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _loading = true;
+        _selectedBrewIds.Clear();
         _coffee = await Db.Coffees.Get(Id);
         if (_coffee is not null)
         {
             var raw = await Db.Brews.Where(nameof(Brew.CoffeeId)).IsEqual(Id).ToList();
             _brews = raw.OrderByDescending(b => b.Date).ToList();
+            var machines = await Db.Machines.ToCollection().ToList();
+            _machinesById = machines.ToDictionary(m => m.Id, m => m);
 
             if (_brews.Count >= 3)
             {
@@ -370,6 +391,33 @@ else
     }
 
     private void GoDuplicate(int brewId) => Nav.NavigateTo($"brews/new?fromBrewId={brewId}");
+
+    private void ToggleSelected(int brewId)
+    {
+        if (_selectedBrewIds.Contains(brewId)) _selectedBrewIds.Remove(brewId);
+        else if (_selectedBrewIds.Count < 2) _selectedBrewIds.Add(brewId);
+        else
+        {
+            // Limite à 2 : on remplace le plus ancien sélectionné
+            var oldest = _selectedBrewIds.First();
+            _selectedBrewIds.Remove(oldest);
+            _selectedBrewIds.Add(brewId);
+        }
+    }
+
+    private async Task OpenCompareAsync()
+    {
+        if (_selectedBrewIds.Count != 2) return;
+        var pair = _brews.Where(b => _selectedBrewIds.Contains(b.Id)).OrderBy(b => b.Date).ToList();
+        var parameters = new DialogParameters
+        {
+            ["BrewA"] = pair[0],
+            ["BrewB"] = pair[1],
+            ["Machines"] = _machinesById
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        await Dialogs.ShowAsync<BrewCompareDialog>("Comparaison de brews", parameters, options);
+    }
 
     private decimal? CostPerGram =>
         _coffee?.Price is decimal price && _coffee?.WeightGrams is int weight && weight > 0

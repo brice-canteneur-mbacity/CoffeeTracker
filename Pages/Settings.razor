@@ -1,17 +1,100 @@
 @page "/settings"
 @using System.Text.Json
 @using System.Text.Json.Serialization
+@implements IDisposable
 @inject CoffeeDb Db
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 @inject PlaceSearchService PlaceSearch
+@inject ThemeService Theme
+@inject SyncService Sync
+@inject AlertsService Alerts
 
 <PageTitle>Réglages</PageTitle>
 
 <PageHeader Title="Réglages" Back="true" BackUrl="stats" />
 
 <MudStack Spacing="3">
+
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudText Typo="Typo.h6" Class="mb-1">Apparence</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            « Système » suit le réglage de ton OS. Sinon force clair ou sombre.
+        </MudText>
+        <MudRadioGroup T="string" Value="@Theme.Preference" ValueChanged="OnThemeChanged">
+            <MudRadio T="string" Value="@("system")" Color="Color.Primary">Système</MudRadio>
+            <MudRadio T="string" Value="@("light")" Color="Color.Primary">Clair</MudRadio>
+            <MudRadio T="string" Value="@("dark")" Color="Color.Primary">Sombre</MudRadio>
+        </MudRadioGroup>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudText Typo="Typo.h6" Class="mb-1">Sync entre appareils (GitHub Gist)</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            Stocke tes données dans un Gist privé sur GitHub. Configure le même token sur tes autres
+            appareils pour synchroniser. Crée un
+            <MudLink Href="https://github.com/settings/tokens?type=beta" Target="_blank">token GitHub</MudLink>
+            avec uniquement le scope <code>gist</code>.
+        </MudText>
+
+        <MudTextField @bind-Value="_pat" Label="GitHub Personal Access Token"
+                      Variant="Variant.Outlined" InputType="InputType.Password"
+                      Placeholder="github_pat_…" Class="mb-2" />
+
+        <div class="d-flex flex-wrap mb-3" style="gap:8px;">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="SavePatAsync" Disabled="Sync.IsBusy">
+                Enregistrer le token
+            </MudButton>
+            @if (Sync.IsConfigured)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Tertiary"
+                           StartIcon="@Icons.Material.Filled.Sync"
+                           OnClick="SyncNowAsync" Disabled="Sync.IsBusy">
+                    @(Sync.IsBusy ? "Synchronisation…" : "Synchroniser maintenant")
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                           StartIcon="@Icons.Material.Filled.LinkOff"
+                           OnClick="DisconnectSyncAsync" Disabled="Sync.IsBusy">
+                    Déconnecter
+                </MudButton>
+            }
+        </div>
+
+        @if (Sync.IsConfigured)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">
+                @if (Sync.LastSync is DateTime ls)
+                {
+                    <span>✓ Dernière sync : @ls.ToLocalTime().ToString("dd MMM, HH:mm")</span>
+                }
+                else
+                {
+                    <span>Pas encore synchronisé. Clique « Synchroniser maintenant » pour pousser les données et créer le Gist privé.</span>
+                }
+                @if (!string.IsNullOrEmpty(Sync.GistId))
+                {
+                    <br/>
+                    <span>Gist : <code>@Sync.GistId</code></span>
+                }
+            </MudText>
+        }
+
+        @if (!string.IsNullOrEmpty(Sync.LastInfo))
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mt-2">@Sync.LastInfo</MudAlert>
+        }
+        @if (!string.IsNullOrEmpty(Sync.LastError))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">@Sync.LastError</MudAlert>
+        }
+
+        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-3" Style="font-style:italic;">
+            ⚠️ Stratégie last-write-wins : « Synchroniser » fait d'abord un pull (écrase tes données locales par celles du Gist), puis push tes données. Pour usage solo multi-appareils, utilise le bouton sur le device le plus à jour avant de basculer.
+        </MudText>
+    </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
         <MudText Typo="Typo.h6" Class="mb-1">Sauvegarde locale</MudText>
@@ -36,6 +119,33 @@
                 </label>
             </div>
         </MudStack>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudText Typo="Typo.h6" Class="mb-1">Notifications</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            Rappels affichés à l'ouverture de l'app : stock bas (≤ 30 g), sac vide,
+            café au-delà du pic de dégazage (> 35 j).
+            Si activé et autorisé par le navigateur, tu reçois aussi une notification système.
+        </MudText>
+        @if (!_notifSupported)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">Ton navigateur ne supporte pas l'API Notifications.</MudAlert>
+        }
+        else
+        {
+            <MudSwitch T="bool" Value="@_notifEnabled" ValueChanged="OnToggleNotifsAsync"
+                       Color="Color.Primary"
+                       Label="@(_notifEnabled ? "Activées" : "Désactivées")" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-1">
+                Permission navigateur :
+                <strong>@_notifPermission</strong>
+                @if (_notifPermission == "denied")
+                {
+                    <span> — débloque dans les réglages du navigateur si tu changes d'avis.</span>
+                }
+            </MudText>
+        }
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
@@ -78,10 +188,74 @@
 @code {
     private bool _busy;
     private string? _googleKey;
+    private string? _pat;
+    private bool _notifSupported;
+    private bool _notifEnabled;
+    private string _notifPermission = "default";
 
     protected override async Task OnInitializedAsync()
     {
         _googleKey = await PlaceSearch.GetGoogleKeyAsync();
+        _pat = Sync.Pat;
+        Sync.StateChanged += OnSyncChanged;
+
+        _notifSupported = await Alerts.IsSupportedAsync();
+        if (_notifSupported)
+        {
+            _notifEnabled = await Alerts.IsEnabledAsync();
+            _notifPermission = await Alerts.GetPermissionAsync();
+        }
+    }
+
+    private async Task OnToggleNotifsAsync(bool enabled)
+    {
+        if (enabled)
+        {
+            // Demande la permission au navigateur si pas encore accordée
+            var granted = await Alerts.RequestPermissionAsync();
+            _notifPermission = await Alerts.GetPermissionAsync();
+            if (!granted)
+            {
+                Snackbar.Add("Permission notifications refusée par le navigateur", Severity.Warning);
+                _notifEnabled = false;
+                return;
+            }
+        }
+        await Alerts.SetEnabledAsync(enabled);
+        _notifEnabled = enabled;
+        Snackbar.Add(enabled ? "Notifications activées" : "Notifications désactivées", Severity.Success);
+    }
+
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Sync.StateChanged -= OnSyncChanged;
+
+    private async Task SavePatAsync()
+    {
+        await Sync.SetPatAsync(_pat);
+        Snackbar.Add(string.IsNullOrWhiteSpace(_pat) ? "Token effacé" : "Token enregistré", Severity.Success);
+    }
+
+    private async Task SyncNowAsync()
+    {
+        var ok = await Sync.SyncAsync();
+        if (ok) Snackbar.Add("Synchronisation OK", Severity.Success);
+        else if (!string.IsNullOrEmpty(Sync.LastError)) Snackbar.Add(Sync.LastError, Severity.Error);
+    }
+
+    private async Task DisconnectSyncAsync()
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
+        {
+            Title = "Déconnecter la sync ?",
+            Message = "Le token et l'identifiant Gist seront effacés sur cet appareil. Tes données locales restent intactes. Le Gist sur GitHub n'est pas supprimé (tu peux le faire manuellement si besoin).",
+            YesText = "Déconnecter",
+            CancelText = "Annuler"
+        });
+        if (ok != true) return;
+        await Sync.DisconnectAsync();
+        _pat = null;
+        Snackbar.Add("Sync déconnectée", Severity.Info);
     }
 
     private async Task SaveGoogleKeyAsync()
@@ -107,6 +281,11 @@
         _googleKey = null;
         await PlaceSearch.SetGoogleKeyAsync(null);
         Snackbar.Add("Clé effacée — passage en OpenStreetMap", Severity.Info);
+    }
+
+    private async Task OnThemeChanged(string pref)
+    {
+        await Theme.SetPreferenceAsync(pref);
     }
 
     private static readonly JsonSerializerOptions ExportOptions = new()

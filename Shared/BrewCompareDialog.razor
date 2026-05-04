@@ -1,0 +1,94 @@
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="0" Class="brew-compare">
+            <div class="compare-row compare-header">
+                <div class="compare-label"></div>
+                <div class="compare-cell">@Format.DateTimeShort(BrewA.Date)</div>
+                <div class="compare-cell">@Format.DateTimeShort(BrewB.Date)</div>
+            </div>
+            @foreach (var row in _rows)
+            {
+                <div class="compare-row @(row.Different ? "compare-diff" : "")">
+                    <div class="compare-label">@row.Label</div>
+                    <div class="compare-cell">@row.A</div>
+                    <div class="compare-cell">@row.B</div>
+                </div>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Fermer</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .brew-compare { font-size: 13px; }
+    .compare-row {
+        display: grid;
+        grid-template-columns: 90px 1fr 1fr;
+        gap: 8px;
+        padding: 8px 4px;
+        border-bottom: 1px solid var(--coffee-border);
+    }
+    .compare-row.compare-header {
+        font-weight: 600;
+        color: var(--coffee-text-soft);
+    }
+    .compare-label {
+        color: var(--coffee-text-dim);
+        font-size: 12px;
+    }
+    .compare-cell {
+        color: var(--coffee-text);
+        word-break: break-word;
+    }
+    .compare-row.compare-diff {
+        background: var(--coffee-surface-soft);
+    }
+</style>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter, EditorRequired] public Brew BrewA { get; set; } = default!;
+    [Parameter, EditorRequired] public Brew BrewB { get; set; } = default!;
+    [Parameter] public Dictionary<int, Machine>? Machines { get; set; }
+
+    private record Row(string Label, string A, string B, bool Different);
+    private List<Row> _rows = new();
+
+    protected override void OnInitialized()
+    {
+        _rows = BuildRows();
+    }
+
+    private void Close() => MudDialog.Close();
+
+    private List<Row> BuildRows()
+    {
+        var list = new List<Row>();
+        Add(list, "Méthode", BrewA.Method.GetLabel(), BrewB.Method.GetLabel());
+        Add(list, "Dose", FmtDose(BrewA.DoseG), FmtDose(BrewB.DoseG));
+        Add(list, "Yield", FmtDose(BrewA.YieldG), FmtDose(BrewB.YieldG));
+        Add(list, "Ratio", BrewA.Ratio ?? "—", BrewB.Ratio ?? "—");
+        Add(list, "Mouture", BrewA.GrindSize ?? "—", BrewB.GrindSize ?? "—");
+        Add(list, "Score", $"{BrewA.Rating}/5", $"{BrewB.Rating}/5");
+        Add(list, "Favori", BrewA.IsFavorite ? "❤" : "—", BrewB.IsFavorite ? "❤" : "—");
+        Add(list, "Machine", MachineName(BrewA.BrewerMachineId), MachineName(BrewB.BrewerMachineId));
+        Add(list, "Moulin", MachineName(BrewA.GrinderId), MachineName(BrewB.GrinderId));
+        Add(list, "Notes", string.IsNullOrEmpty(BrewA.Notes) ? "—" : BrewA.Notes, string.IsNullOrEmpty(BrewB.Notes) ? "—" : BrewB.Notes);
+        return list;
+    }
+
+    private static void Add(List<Row> list, string label, string a, string b)
+        => list.Add(new Row(label, a, b, !string.Equals(a, b, StringComparison.Ordinal)));
+
+    private static string FmtDose(decimal? v)
+        => v is null ? "—" : $"{v.Value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)} g";
+
+    private string MachineName(int? id)
+    {
+        if (id is null) return "—";
+        if (Machines is not null && Machines.TryGetValue(id.Value, out var m)) return m.Name;
+        return $"#{id}";
+    }
+}

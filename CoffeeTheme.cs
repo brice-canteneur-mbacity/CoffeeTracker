@@ -22,6 +22,25 @@ public static class CoffeeTheme
             Divider = "#f6efe4",
             DividerLight = "#f6efe4"
         },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#d4b487",
+            Secondary = "#bd8d57",
+            Tertiary = "#a06d3b",
+            AppbarBackground = "#2a1812",
+            AppbarText = "#fdfaf6",
+            Background = "#1a100a",
+            Surface = "#2a1812",
+            DrawerBackground = "#2a1812",
+            TextPrimary = "#fdfaf6",
+            TextSecondary = "#c4ad8c",
+            TextDisabled = "#7a6649",
+            ActionDefault = "#c4ad8c",
+            Divider = "#3b2418",
+            DividerLight = "#2a1812",
+            Dark = "#0e0805",
+            DarkLighten = "#3b2418"
+        },
         Typography = new Typography
         {
             Default = new DefaultTypography

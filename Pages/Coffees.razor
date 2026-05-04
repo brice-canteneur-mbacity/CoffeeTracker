@@ -40,7 +40,7 @@ else
     if (list.Count == 0)
     {
         <MudPaper Class="pa-8 d-flex flex-column align-center" Elevation="0">
-            <MudIcon Icon="@Icons.Material.Filled.Coffee" Size="Size.Large" Class="mb-3" Style="color:#a06d3b" />
+            <MudIcon Icon="@Icons.Material.Filled.Coffee" Size="Size.Large" Class="mb-3" Style="color: var(--coffee-accent-soft)" />
             @if (hasSearch)
             {
                 <MudText Typo="Typo.h6">Aucun résultat</MudText>
@@ -90,7 +90,7 @@ else
                         <div style="flex:1; min-width:0;">
                             <MudText Typo="Typo.caption" Class="text-uppercase mud-text-secondary" Style="letter-spacing:.04em;">@c.Roaster</MudText>
                             <MudText Typo="Typo.subtitle1" Style="font-weight:600;line-height:1.2;">@c.Name</MudText>
-                            <div class="d-flex flex-wrap mt-1" style="gap:6px 12px; font-size:12px; color:#7a6649;">
+                            <div class="d-flex flex-wrap mt-1" style="gap:6px 12px; font-size:12px; color: var(--coffee-text-muted);">
                                 @if (!string.IsNullOrEmpty(c.Country))
                                 {
                                     <span><MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />@c.Country@(string.IsNullOrEmpty(c.Region) ? "" : $", {c.Region}")</span>
@@ -137,7 +137,7 @@ else
 
 <style>
     .coffee-card {
-        border: 1px solid #f0e7d8;
+        border: 1px solid var(--coffee-border);
         cursor: pointer;
         transition: transform .08s ease;
     }
@@ -148,13 +148,13 @@ else
         width: 64px; height: 64px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
     }
     .thumb-placeholder {
-        background: #f6efe4; display: flex; align-items: center; justify-content: center; color: #a06d3b;
+        background: var(--coffee-surface-soft); display: flex; align-items: center; justify-content: center; color: var(--coffee-accent-soft);
     }
     .stock-bar {
         display: flex; align-items: center; gap: 8px;
     }
     .stock-bar-track {
-        flex: 1; height: 4px; border-radius: 2px; background: #f0e7d8; overflow: hidden;
+        flex: 1; height: 4px; border-radius: 2px; background: var(--coffee-border); overflow: hidden;
     }
     .stock-bar-fill {
         height: 100%; transition: width .2s ease;
@@ -163,7 +163,7 @@ else
     .stock-bar-fill.stock-mid { background: #f59e0b; }
     .stock-bar-fill.stock-low { background: #dc2626; }
     .stock-bar-text {
-        font-size: 11px; color: #7a6649; font-weight: 500; font-variant-numeric: tabular-nums;
+        font-size: 11px; color: var(--coffee-text-muted); font-weight: 500; font-variant-numeric: tabular-nums;
         min-width: 50px; text-align: right;
     }
 </style>

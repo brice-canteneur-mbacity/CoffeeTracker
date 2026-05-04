@@ -106,7 +106,7 @@ else
                         var pct = (double)kv.Value / _brews.Count * 100;
                         <div>
                             <div class="d-flex justify-space-between" style="font-size:14px;">
-                                <span style="color:#5a3a1d;">@kv.Key.GetLabel()</span>
+                                <span style="color: var(--coffee-text-soft);">@kv.Key.GetLabel()</span>
                                 <span class="mud-text-secondary">@kv.Value</span>
                             </div>
                             <MudProgressLinear Value="@pct" Color="Color.Primary" Class="mt-1" Style="height:6px; border-radius:3px;" />

@@ -1,0 +1,278 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using CoffeeTracker.Data;
+using CoffeeTracker.Models;
+using Microsoft.JSInterop;
+
+namespace CoffeeTracker.Lib;
+
+public class SyncService(IJSRuntime js, CoffeeDb db)
+{
+    private readonly IJSRuntime _js = js;
+    private readonly CoffeeDb _db = db;
+    private readonly HttpClient _http = new();
+
+    private const string PatKey = "coffee.sync.pat";
+    private const string GistIdKey = "coffee.sync.gistId";
+    private const string LastSyncKey = "coffee.sync.lastSync";
+    private const string GistFilename = "coffee-tracker.json";
+    private const string GistDescription = "Coffee Tracker — données perso (sauvegarde sync)";
+
+    public string? Pat { get; private set; }
+    public string? GistId { get; private set; }
+    public DateTime? LastSync { get; private set; }
+    public bool IsConfigured => !string.IsNullOrEmpty(Pat);
+    public bool IsBusy { get; private set; }
+    public string? LastError { get; private set; }
+    public string? LastInfo { get; private set; }
+
+    public event Action? StateChanged;
+
+    private static readonly JsonSerializerOptions BackupOptions = new()
+    {
+        WriteIndented = false,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private static readonly JsonSerializerOptions ImportOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+
+    public async Task InitializeAsync()
+    {
+        Pat = await GetItem(PatKey);
+        GistId = await GetItem(GistIdKey);
+        var lastStr = await GetItem(LastSyncKey);
+        if (DateTime.TryParse(lastStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var ls))
+            LastSync = ls;
+        StateChanged?.Invoke();
+
+        // Auto-pull au démarrage si configuré et qu'un Gist existe.
+        if (IsConfigured && !string.IsNullOrEmpty(GistId))
+        {
+            _ = PullAsync();
+        }
+    }
+
+    public async Task SetPatAsync(string? pat)
+    {
+        Pat = string.IsNullOrWhiteSpace(pat) ? null : pat.Trim();
+        if (Pat is null)
+        {
+            await RemoveItem(PatKey);
+        }
+        else
+        {
+            await SetItem(PatKey, Pat);
+        }
+        StateChanged?.Invoke();
+    }
+
+    public async Task DisconnectAsync()
+    {
+        Pat = null;
+        GistId = null;
+        LastSync = null;
+        await RemoveItem(PatKey);
+        await RemoveItem(GistIdKey);
+        await RemoveItem(LastSyncKey);
+        StateChanged?.Invoke();
+    }
+
+    /// <summary>Push : sérialise toutes les données et update/crée le Gist.</summary>
+    public async Task<bool> PushAsync()
+    {
+        if (!IsConfigured) return false;
+        IsBusy = true;
+        LastError = null;
+        LastInfo = null;
+        StateChanged?.Invoke();
+        try
+        {
+            var backup = await BuildBackupAsync();
+            var content = JsonSerializer.Serialize(backup, BackupOptions);
+
+            var fileObj = new Dictionary<string, object>
+            {
+                [GistFilename] = new { content }
+            };
+            var payload = new Dictionary<string, object>
+            {
+                ["description"] = GistDescription,
+                ["files"] = fileObj
+            };
+
+            HttpRequestMessage request;
+            if (string.IsNullOrEmpty(GistId))
+            {
+                payload["public"] = false;
+                request = new HttpRequestMessage(HttpMethod.Post, "https://api.github.com/gists");
+            }
+            else
+            {
+                request = new HttpRequestMessage(HttpMethod.Patch, $"https://api.github.com/gists/{GistId}");
+            }
+
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Pat);
+            request.Headers.UserAgent.ParseAdd("CoffeeTracker");
+            request.Headers.Accept.ParseAdd("application/vnd.github+json");
+            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            var response = await _http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            var body = await response.Content.ReadAsStringAsync();
+            var gist = JsonSerializer.Deserialize<GistResponse>(body, ImportOptions);
+            if (gist?.Id is not null && gist.Id != GistId)
+            {
+                GistId = gist.Id;
+                await SetItem(GistIdKey, GistId);
+            }
+
+            LastSync = DateTime.UtcNow;
+            await SetItem(LastSyncKey, LastSync.Value.ToString("O"));
+            LastInfo = $"Push OK ({backup.Coffees?.Count ?? 0} cafés, {backup.Brews?.Count ?? 0} brews, {backup.ShopVisits?.Count ?? 0} visites, {backup.Machines?.Count ?? 0} machines)";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LastError = $"Push : {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+            StateChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Pull : récupère le Gist et écrase les données locales.</summary>
+    public async Task<bool> PullAsync()
+    {
+        if (!IsConfigured) return false;
+        if (string.IsNullOrEmpty(GistId)) return false;
+
+        IsBusy = true;
+        LastError = null;
+        LastInfo = null;
+        StateChanged?.Invoke();
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/gists/{GistId}");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Pat);
+            request.Headers.UserAgent.ParseAdd("CoffeeTracker");
+            request.Headers.Accept.ParseAdd("application/vnd.github+json");
+
+            var response = await _http.SendAsync(request);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                // Gist supprimé côté GitHub — on oublie l'ID local et on attendra un nouveau push.
+                GistId = null;
+                await RemoveItem(GistIdKey);
+                LastError = "Gist introuvable côté GitHub — sera recréé au prochain push.";
+                return false;
+            }
+            response.EnsureSuccessStatusCode();
+
+            var body = await response.Content.ReadAsStringAsync();
+            var gist = JsonSerializer.Deserialize<GistResponse>(body, ImportOptions);
+            var content = gist?.Files?.GetValueOrDefault(GistFilename)?.Content;
+            if (string.IsNullOrEmpty(content))
+            {
+                LastError = "Le Gist ne contient pas le fichier attendu.";
+                return false;
+            }
+
+            var data = JsonSerializer.Deserialize<CoffeeBackup>(content, ImportOptions);
+            if (data is null)
+            {
+                LastError = "Données corrompues dans le Gist.";
+                return false;
+            }
+
+            await ApplyBackupAsync(data);
+
+            LastSync = DateTime.UtcNow;
+            await SetItem(LastSyncKey, LastSync.Value.ToString("O"));
+            LastInfo = $"Pull OK ({data.Coffees?.Count ?? 0} cafés, {data.Brews?.Count ?? 0} brews, {data.ShopVisits?.Count ?? 0} visites, {data.Machines?.Count ?? 0} machines)";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LastError = $"Pull : {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+            StateChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Sync = pull + push (le pull en premier, le push ensuite si pull a réussi).</summary>
+    public async Task<bool> SyncAsync()
+    {
+        if (!IsConfigured) return false;
+        // Si pas encore de Gist : on push direct (création)
+        if (string.IsNullOrEmpty(GistId)) return await PushAsync();
+        var pulled = await PullAsync();
+        if (!pulled) return false;
+        return await PushAsync();
+    }
+
+    private async Task<CoffeeBackup> BuildBackupAsync() => new()
+    {
+        Version = 3,
+        ExportedAt = DateTime.UtcNow,
+        Coffees = await _db.Coffees.ToCollection().ToList(),
+        Brews = await _db.Brews.ToCollection().ToList(),
+        ShopVisits = await _db.ShopVisits.ToCollection().ToList(),
+        Machines = await _db.Machines.ToCollection().ToList()
+    };
+
+    private async Task ApplyBackupAsync(CoffeeBackup data)
+    {
+        await _db.Coffees.Clear();
+        await _db.Brews.Clear();
+        await _db.ShopVisits.Clear();
+        await _db.Machines.Clear();
+
+        foreach (var c in data.Coffees ?? new()) await _db.Coffees.Put(c);
+        foreach (var b in data.Brews ?? new()) await _db.Brews.Put(b);
+        foreach (var v in data.ShopVisits ?? new()) await _db.ShopVisits.Put(v);
+        foreach (var m in data.Machines ?? new()) await _db.Machines.Put(m);
+    }
+
+    private async Task<string?> GetItem(string key)
+        => await _js.InvokeAsync<string?>("localStorage.getItem", key);
+
+    private async Task SetItem(string key, string value)
+        => await _js.InvokeVoidAsync("localStorage.setItem", key, value);
+
+    private async Task RemoveItem(string key)
+        => await _js.InvokeVoidAsync("localStorage.removeItem", key);
+
+    private class GistResponse
+    {
+        public string? Id { get; set; }
+
+        [JsonPropertyName("updated_at")]
+        public DateTime UpdatedAt { get; set; }
+
+        public Dictionary<string, GistFile>? Files { get; set; }
+    }
+
+    private class GistFile
+    {
+        public string? Filename { get; set; }
+        public string? Content { get; set; }
+    }
+}
