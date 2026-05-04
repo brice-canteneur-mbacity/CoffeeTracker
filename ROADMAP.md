@@ -35,13 +35,7 @@ Items classés par ordre de priorité. ☑ = fait, ▶ = en cours, ⬜ = à fair
 
 ## Déploiement
 
-- ⬜ **15. Déployer l'app sur GitHub Pages** — pour pouvoir y accéder depuis le téléphone (PWA installable, HTTPS, gratuit, URL stable). Étapes prévues :
-  - Conditionner `<base href>` (`/coffee/` en prod, `/` en dev) dans `wwwroot/index.html`
-  - Ajouter un workflow `.github/workflows/deploy.yml` qui fait `dotnet publish -c Release` → push de `bin/Release/net9.0/publish/wwwroot/` sur la branche `gh-pages`
-  - Créer `404.html` (copie d'`index.html`) en sortie de publish, pour le fallback SPA
-  - Créer `.nojekyll` en sortie de publish (sinon GitHub Pages ignore les dossiers `_framework/`)
-  - Activer Pages dans Settings du repo : source = branche `gh-pages`
-  - Restreindre la clé Google Maps Platform par HTTP referrer (`https://<user>.github.io/*`)
+- ☑ **15. Déployer l'app sur GitHub Pages** — workflow `.github/workflows/deploy.yml` qui à chaque push sur `master` : publish Blazor WASM, patch `<base href="/CoffeeTracker/">`, génère `404.html` (fallback SPA) et `.nojekyll`, deploy via `actions/deploy-pages@v4`. URL prod : `https://brice-canteneur-mbacity.github.io/CoffeeTracker/`
 
 ---
 
