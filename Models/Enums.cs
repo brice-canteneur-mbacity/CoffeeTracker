@@ -21,6 +21,17 @@ public enum RoastLevel
     [Description("Foncé")] Dark
 }
 
+public enum DecafProcess
+{
+    // NOTE: ne pas réordonner — les valeurs entières sont stockées dans IndexedDB.
+    [Description("Swiss Water (sans solvant)")] SwissWater = 0,
+    [Description("Mountain Water (Mexique)")] MountainWater = 1,
+    [Description("CO₂ supercritique")] Co2 = 2,
+    [Description("EA / Sucre de canne")] EthylAcetate = 3,
+    [Description("MC / Dichlorométhane")] MethyleneChloride = 4,
+    [Description("Autre / Inconnu")] Other = 5
+}
+
 public enum MachineType
 {
     // NOTE: ne pas réordonner — les valeurs entières sont stockées telles quelles dans IndexedDB.

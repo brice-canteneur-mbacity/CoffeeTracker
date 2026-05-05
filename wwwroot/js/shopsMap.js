@@ -73,24 +73,28 @@ window.coffeeMap = (function () {
     entry.layer.clearLayers();
 
     const points = [];
-    for (const v of (visits || [])) {
-      if (v.latitude == null || v.longitude == null) continue;
-      const r = Number(v.rating) || 0;
-      const stars = '★'.repeat(r) + '☆'.repeat(Math.max(0, 5 - r));
-      const coffee = v.coffeeOrigin ? `<div class="coffee-popup-meta">${escapeHtml(v.coffeeOrigin)}</div>` : '';
-      const drink = v.drinkType ? `<div class="coffee-popup-meta">${escapeHtml(v.drinkType)}</div>` : '';
+    // Markers shop-centric : 1 marker par Shop (pas par visite).
+    // Format attendu : { id, shopName, city, visitCount, rating, latitude, longitude, lastVisitLabel }
+    for (const s of (visits || [])) {
+      if (s.latitude == null || s.longitude == null) continue;
+      const r = Number(s.rating) || 0;
+      const stars = r > 0 ? '★'.repeat(r) + '☆'.repeat(Math.max(0, 5 - r)) : '';
+      const cityLine = s.city ? `<div class="coffee-popup-meta">${escapeHtml(s.city)}</div>` : '';
+      const visitsCount = Number(s.visitCount) || 0;
+      const visitsLine = visitsCount > 0
+        ? `<div class="coffee-popup-meta">${visitsCount} visite${visitsCount > 1 ? 's' : ''}${s.lastVisitLabel ? ' · dernière le ' + escapeHtml(s.lastVisitLabel) : ''}</div>`
+        : '<div class="coffee-popup-meta">Aucune visite</div>';
       const popup = `
         <div class="coffee-popup">
-          <div class="coffee-popup-title">${escapeHtml(v.shopName || 'Sans nom')}</div>
-          ${drink}
-          ${coffee}
-          <div class="coffee-popup-stars">${stars}</div>
-          <div class="coffee-popup-date">${escapeHtml(v.dateLabel || '')}</div>
-          <a class="coffee-popup-link" href="shops/${v.id}/edit">Modifier ›</a>
+          <div class="coffee-popup-title">${escapeHtml(s.shopName || 'Sans nom')}</div>
+          ${cityLine}
+          ${visitsLine}
+          ${stars ? `<div class="coffee-popup-stars">${stars}</div>` : ''}
+          <a class="coffee-popup-link" href="shops/${s.id}">Voir le shop ›</a>
         </div>`;
-      const marker = L.marker([v.latitude, v.longitude], { icon: makeIcon(r) }).bindPopup(popup);
+      const marker = L.marker([s.latitude, s.longitude], { icon: makeIcon(r) }).bindPopup(popup);
       entry.layer.addLayer(marker);
-      points.push([v.latitude, v.longitude]);
+      points.push([s.latitude, s.longitude]);
     }
 
     if (points.length === 1) {

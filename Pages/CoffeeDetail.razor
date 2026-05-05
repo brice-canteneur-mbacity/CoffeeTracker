@@ -66,6 +66,10 @@ else
                 <DetailRow Label="Notes process" Value="@_coffee.ProcessNotes" />
             }
             <DetailRow Label="Caféine" Value="@(_coffee.IsDecaf ? "Décaféiné" : "Normal")" />
+            @if (_coffee.IsDecaf && _coffee.DecafMethod is not null)
+            {
+                <DetailRow Label="Méthode décaf" Value="@_coffee.DecafMethod.Value.GetLabel()" />
+            }
             @if (_coffee.RoastLevel is not null)
             {
                 <DetailRow Label="Torréfaction" Value="@_coffee.RoastLevel.Value.GetLabel()" />
@@ -138,8 +142,9 @@ else
         @if (_coffee.WeightGrams is int totalGrams && _coffee.FinishedAt is null)
         {
             var used = _brews.Sum(b => b.DoseG ?? 0m);
-            var remaining = totalGrams - used;
-            var pct = totalGrams > 0 ? (double)Math.Max(0m, remaining) / totalGrams * 100 : 0;
+            var adjusted = totalGrams + _coffee.StockAdjustmentG;
+            var remaining = adjusted - used;
+            var pct = adjusted > 0m ? (double)Math.Max(0m, remaining) / (double)adjusted * 100 : 0;
             var color = remaining <= 30m ? Color.Error : (remaining <= 60m ? Color.Warning : Color.Primary);
             <MudPaper Class="pa-4" Elevation="0">
                 <div class="d-flex justify-space-between align-baseline mb-2">
@@ -150,6 +155,13 @@ else
                     </MudText>
                 </div>
                 <MudProgressLinear Value="@pct" Color="@color" Style="height:8px; border-radius:4px;" />
+                @if (_coffee.StockAdjustmentG != 0m)
+                {
+                    var sign = _coffee.StockAdjustmentG > 0m ? "+" : "";
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">
+                        Inclut un ajustement de @sign@_coffee.StockAdjustmentG.ToString("0.#") g.
+                    </MudText>
+                }
                 @if (remaining <= 0m)
                 {
                     <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-2">Sac vide d'après les brews enregistrés.</MudText>
@@ -158,6 +170,10 @@ else
                 {
                     <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-2">Bientôt fini — pense à racheter.</MudText>
                 }
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Tune"
+                           OnClick="OpenStockAdjustAsync"
+                           Class="mt-2">Ajuster le stock</MudButton>
             </MudPaper>
         }
 
@@ -237,9 +253,10 @@ else
                                         @if (b.DoseG is not null) { <span> · @b.DoseG g</span> }
                                     </MudText>
                                 </div>
-                                <span @onclick="() => GoDuplicate(b.Id)" @onclick:stopPropagation="true">
+                                <span @onclick:stopPropagation="true">
                                     <MudIconButton Icon="@Icons.Material.Filled.Replay" Size="Size.Small"
                                                    Color="Color.Primary"
+                                                   OnClick="@(() => GoDuplicate(b.Id))"
                                                    aria-label="Refaire ce brew" />
                                 </span>
                             </div>
@@ -442,6 +459,26 @@ else
             .Where(s => !string.IsNullOrEmpty(s))
             .ToArray();
         return parts.Length == 0 ? "—" : string.Join(" · ", parts);
+    }
+
+    private async Task OpenStockAdjustAsync()
+    {
+        if (_coffee is null) return;
+        var sumBrews = _brews.Sum(b => b.DoseG ?? 0m);
+        var parameters = new DialogParameters
+        {
+            ["Coffee"] = _coffee,
+            ["SumBrewsG"] = sumBrews
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var dialogRef = await Dialogs.ShowAsync<StockAdjustmentDialog>("Ajuster le stock", parameters, options);
+        var result = await dialogRef.Result;
+        if (result is not null && !result.Canceled)
+        {
+            // Le coffee a été modifié dans le dialog — rafraîchir la vue.
+            _coffee = await Db.Coffees.Get(Id);
+            StateHasChanged();
+        }
     }
 
     private async Task ToggleFinishedAsync()

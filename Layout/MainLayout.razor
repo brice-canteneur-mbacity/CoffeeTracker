@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @inject AlertsService Alerts
+@inject MigrationService Migrations
 @inject ISnackbar Snackbar
 
 <MudLayout>
@@ -20,6 +21,23 @@
         // Évaluation des alertes une seule fois par session.
         if (_alertsEvaluated) return;
         _alertsEvaluated = true;
+
+        // Migrations data idempotentes (visites legacy → entités Shop, etc.).
+        // S'exécute avant les alertes pour que celles-ci voient les bonnes données.
+        try
+        {
+            var report = await Migrations.RunIfNeededAsync();
+            if (report.HasChanges)
+            {
+                Snackbar.Add(
+                    $"Migration : {report.ShopsCreated} shop(s) créé(s) depuis tes anciennes visites.",
+                    Severity.Info);
+            }
+        }
+        catch
+        {
+            // Échec migration ne doit pas bloquer le rendu — l'utilisateur retentera au reload.
+        }
 
         try
         {

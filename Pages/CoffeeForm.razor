@@ -92,6 +92,17 @@
             </MudSelect>
             <MudTextField @bind-Value="_model.ProcessNotes" Label="Notes process" Variant="Variant.Outlined" Placeholder="ex : 72h fermentation anaérobie" Class="mb-3" />
             <MudSwitch T="bool" @bind-Value="_model.IsDecaf" Label="Décaféiné" Color="Color.Primary" Class="mb-2" />
+            @if (_model.IsDecaf)
+            {
+                <MudSelect T="DecafProcess?" @bind-Value="_model.DecafMethod"
+                           Label="Méthode de décaféination"
+                           Variant="Variant.Outlined" Clearable="true" Class="mb-3">
+                    @foreach (var d in Enum.GetValues<DecafProcess>())
+                    {
+                        <MudSelectItem T="DecafProcess?" Value="@d">@d.GetLabel()</MudSelectItem>
+                    }
+                </MudSelect>
+            }
             <MudSwitch T="bool" @bind-Value="_model.IsBlend" Label="C'est un blend" Color="Color.Primary" Class="mb-3" />
             <MudGrid Spacing="2">
                 <MudItem xs="6">

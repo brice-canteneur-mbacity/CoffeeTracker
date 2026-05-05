@@ -1,0 +1,100 @@
+@inject CoffeeDb Db
+@inject ISnackbar Snackbar
+@inject SyncService Sync
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <div>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    Stock calculé actuellement
+                </MudText>
+                <MudText Typo="Typo.h5" Style="font-weight:600;">
+                    @CurrentComputed.ToString("0.#", _inv) g
+                    <span class="mud-text-secondary" style="font-weight:400; font-size:13px;">
+                        sur @InitialWeight g initiaux
+                    </span>
+                </MudText>
+                @if (CurrentAdjustment != 0m)
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        Inclut un ajustement précédent de
+                        @(CurrentAdjustment > 0m ? "+" : "")@CurrentAdjustment.ToString("0.#", _inv) g
+                    </MudText>
+                }
+            </div>
+
+            <MudNumericField T="decimal?" @bind-Value="_realStockG"
+                             Label="Stock réel (g)"
+                             Variant="Variant.Outlined"
+                             Format="0.#" Culture="@_inv" Min="0m"
+                             HelperText="Pèse le sac et saisis ce qu'il reste vraiment." />
+
+            @if (DeltaPreview is decimal d)
+            {
+                var sign = d >= 0m ? "+" : "";
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Ajustement appliqué : @sign@d.ToString("0.#", _inv) g par rapport au calcul actuel.
+                </MudText>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Annuler</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="SaveAsync"
+                   Disabled="@(_realStockG is null || _saving)">
+            Enregistrer
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter, EditorRequired] public Coffee Coffee { get; set; } = default!;
+    [Parameter, EditorRequired] public decimal SumBrewsG { get; set; }
+
+    private decimal? _realStockG;
+    private bool _saving;
+    private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    private decimal InitialWeight => Coffee.WeightGrams ?? 0;
+    private decimal CurrentAdjustment => Coffee.StockAdjustmentG;
+    private decimal CurrentComputed => InitialWeight + CurrentAdjustment - SumBrewsG;
+
+    private decimal? DeltaPreview =>
+        _realStockG is decimal r ? r - CurrentComputed : null;
+
+    protected override void OnInitialized()
+    {
+        // Pré-remplit avec la valeur calculée — un seul clic Enregistrer la fige.
+        _realStockG = Math.Max(0m, Math.Round(CurrentComputed, 1));
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_realStockG is not decimal real) return;
+        _saving = true;
+        try
+        {
+            // Stock réel = WeightGrams + adjustment - sumBrews
+            // ⇒ adjustment = real - WeightGrams + sumBrews
+            Coffee.StockAdjustmentG = Math.Round(real - InitialWeight + SumBrewsG, 1);
+            Coffee.UpdatedAt = DateTime.UtcNow;
+            await Db.Coffees.Put(Coffee);
+            Sync.RequestPush();
+            Snackbar.Add("Stock ajusté", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(real));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

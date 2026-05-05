@@ -183,7 +183,7 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
 
             LastSync = DateTime.UtcNow;
             await SetItem(LastSyncKey, LastSync.Value.ToString("O"));
-            LastInfo = $"Push OK ({backup.Coffees?.Count ?? 0} cafés, {backup.Brews?.Count ?? 0} brews, {backup.ShopVisits?.Count ?? 0} visites, {backup.Machines?.Count ?? 0} machines)";
+            LastInfo = $"Push OK ({backup.Coffees?.Count ?? 0} cafés, {backup.Brews?.Count ?? 0} brews, {backup.Shops?.Count ?? 0} shops, {backup.ShopVisits?.Count ?? 0} visites, {backup.Machines?.Count ?? 0} machines)";
             return true;
         }
         catch (Exception ex)
@@ -241,7 +241,7 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
 
             LastSync = DateTime.UtcNow;
             await SetItem(LastSyncKey, LastSync.Value.ToString("O"));
-            LastInfo = $"Pull OK ({data.Coffees?.Count ?? 0} cafés, {data.Brews?.Count ?? 0} brews, {data.ShopVisits?.Count ?? 0} visites, {data.Machines?.Count ?? 0} machines)";
+            LastInfo = $"Pull OK ({data.Coffees?.Count ?? 0} cafés, {data.Brews?.Count ?? 0} brews, {data.Shops?.Count ?? 0} shops, {data.ShopVisits?.Count ?? 0} visites, {data.Machines?.Count ?? 0} machines)";
             return true;
         }
         catch (Exception ex)
@@ -338,10 +338,11 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
 
     private async Task<CoffeeBackup> BuildBackupAsync() => new()
     {
-        Version = 3,
+        Version = 4,
         ExportedAt = DateTime.UtcNow,
         Coffees = await _db.Coffees.ToCollection().ToList(),
         Brews = await _db.Brews.ToCollection().ToList(),
+        Shops = await _db.Shops.ToCollection().ToList(),
         ShopVisits = await _db.ShopVisits.ToCollection().ToList(),
         Machines = await _db.Machines.ToCollection().ToList()
     };
@@ -351,12 +352,16 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         await _db.Coffees.Clear();
         await _db.Brews.Clear();
         await _db.ShopVisits.Clear();
+        await _db.Shops.Clear();
         await _db.Machines.Clear();
 
         foreach (var c in data.Coffees ?? new()) await _db.Coffees.Put(c);
         foreach (var b in data.Brews ?? new()) await _db.Brews.Put(b);
+        foreach (var s in data.Shops ?? new()) await _db.Shops.Put(s);
         foreach (var v in data.ShopVisits ?? new()) await _db.ShopVisits.Put(v);
         foreach (var m in data.Machines ?? new()) await _db.Machines.Put(m);
+        // Pour un backup pré-v4 (Shops null), la migration au démarrage suivant
+        // reconstruira les Shops à partir des visites legacy (cf. MigrationService).
     }
 
     private async Task<string?> GetItem(string key)

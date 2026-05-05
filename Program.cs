@@ -19,5 +19,6 @@ builder.Services.AddScoped<PlaceSearchService>();
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<SyncService>();
 builder.Services.AddScoped<AlertsService>();
+builder.Services.AddScoped<MigrationService>();
 
 await builder.Build().RunAsync();

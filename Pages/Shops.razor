@@ -6,7 +6,8 @@
 
 <PageTitle>Coffee shops</PageTitle>
 
-<PageHeader Title="Coffee shops" Subtitle="@($"{_visits.Count} visite{(_visits.Count > 1 ? "s" : "")}")">
+<PageHeader Title="Coffee shops"
+            Subtitle="@($"{_aggregates.Count} shop{(_aggregates.Count > 1 ? "s" : "")} · {_totalVisits} visite{(_totalVisits > 1 ? "s" : "")}")">
     <Action>
         <MudIconButton Icon="@(_mapMode ? Icons.Material.Filled.ViewList : Icons.Material.Filled.Map)"
                        Size="Size.Medium"
@@ -26,15 +27,14 @@
 }
 else
 {
-    <MudTextField @bind-Value="_search" Placeholder="Rechercher (nom, ville, boisson…)"
+    <MudTextField @bind-Value="_search" Placeholder="Rechercher (nom, ville…)"
                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3"
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                   Clearable="true" Immediate="true" DebounceInterval="150" />
 
-    var filtered = Filter(_visits);
+    var filtered = Filter(_aggregates);
     var hasSearch = !string.IsNullOrWhiteSpace(_search);
-
-    var withCoords = filtered.Count(v => v.Latitude is not null && v.Longitude is not null);
+    var withCoords = filtered.Count(a => a.Shop.Latitude is not null && a.Shop.Longitude is not null);
 
     if (_mapMode)
     {
@@ -42,19 +42,19 @@ else
         if (filtered.Count == 0)
         {
             <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block text-center">
-                Aucune visite à afficher.
+                Aucun shop à afficher.
             </MudText>
         }
         else if (withCoords == 0)
         {
             <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block text-center">
-                Aucune des @filtered.Count visite(s) n'a de coordonnées GPS — utilise « Rechercher en ligne » sur le formulaire pour les géolocaliser.
+                Aucun des @filtered.Count shop(s) n'a de coordonnées GPS — utilise « Rechercher en ligne » sur le formulaire shop pour les géolocaliser.
             </MudText>
         }
         else if (withCoords < filtered.Count)
         {
             <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block text-center">
-                @withCoords sur @filtered.Count visites localisées sur la carte (les autres n'ont pas de coordonnées).
+                @withCoords sur @filtered.Count shop(s) localisés sur la carte.
             </MudText>
         }
     }
@@ -69,25 +69,25 @@ else
             }
             else
             {
-                <MudText Typo="Typo.h6">Aucun shop visité</MudText>
-                <MudText Class="mb-4 mud-text-secondary">Note les cafés que tu bois en boutique.</MudText>
+                <MudText Typo="Typo.h6">Aucun shop encore</MudText>
+                <MudText Class="mb-4 mud-text-secondary">Ajoute un shop pour suivre tes visites.</MudText>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
-                           OnClick="@(() => Nav.NavigateTo("shops/new"))">Ajouter une visite</MudButton>
+                           OnClick="@(() => Nav.NavigateTo("shops/new"))">Ajouter un shop</MudButton>
             }
         </MudPaper>
     }
     else
     {
     <MudStack Spacing="2">
-        @foreach (var v in filtered)
+        @foreach (var a in filtered)
         {
             <MudPaper Class="pa-3 shop-card" Elevation="0"
-                      @onclick="@(() => Nav.NavigateTo($"shops/{v.Id}/edit"))">
+                      @onclick="@(() => Nav.NavigateTo($"shops/{a.Shop.Id}"))">
                 <div class="d-flex" style="gap:12px;">
-                    @if (!string.IsNullOrEmpty(v.PhotoDataUrl))
+                    @if (!string.IsNullOrEmpty(a.PhotoDataUrl))
                     {
-                        <img src="@v.PhotoDataUrl" alt="" class="thumb-md" />
+                        <img src="@a.PhotoDataUrl" alt="" class="thumb-md" />
                     }
                     else
                     {
@@ -97,20 +97,33 @@ else
                     }
                     <div style="flex:1; min-width:0;">
                         <div class="d-flex align-start justify-space-between" style="gap:8px;">
-                            <MudText Style="font-weight:600;" Class="text-truncate">@v.ShopName</MudText>
-                            <StarRating Value="@v.Rating" ReadOnly="true" Size="Size.Small" />
+                            <MudText Style="font-weight:600;" Class="text-truncate">@a.Shop.Name</MudText>
+                            @if (a.VisitCount > 0)
+                            {
+                                <StarRating Value="@((int)Math.Round(a.AverageRating))" ReadOnly="true" Size="Size.Small" />
+                            }
                         </div>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary text-truncate">
-                            @v.DrinkType@(string.IsNullOrEmpty(CoffeeLabel(v)) ? "" : $" · {CoffeeLabel(v)}")
-                        </MudText>
                         <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
-                            @if (!string.IsNullOrEmpty(v.City) || !string.IsNullOrEmpty(v.Country))
+                            @if (!string.IsNullOrEmpty(a.Shop.City) || !string.IsNullOrEmpty(a.Shop.Country))
                             {
                                 <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />
-                                <span>@(string.Join(", ", new[] { v.City, v.Country }.Where(s => !string.IsNullOrEmpty(s))))</span>
+                                <span>@(string.Join(", ", new[] { a.Shop.City, a.Shop.Country }.Where(s => !string.IsNullOrEmpty(s))))</span>
                                 <span> · </span>
                             }
-                            <span>@Format.Date(v.Date)</span>
+                            <span>
+                                @if (a.VisitCount == 0)
+                                {
+                                    <span>Aucune visite</span>
+                                }
+                                else
+                                {
+                                    <span>@a.VisitCount visite@(a.VisitCount > 1 ? "s" : "")</span>
+                                    @if (a.LastVisitDate is DateOnly d)
+                                    {
+                                        <span> · dernière le @Format.Date(d)</span>
+                                    }
+                                }
+                            </span>
                         </MudText>
                     </div>
                 </div>
@@ -139,39 +152,60 @@ else
     private const string MapElementId = "shops-map";
 
     private bool _loading = true;
-    private List<CoffeeShopVisit> _visits = new();
-    private Dictionary<int, Coffee> _coffeesById = new();
+    private List<ShopAggregate> _aggregates = new();
+    private int _totalVisits;
     private string _search = string.Empty;
     private bool _mapMode;
     private bool _mapInitialized;
 
-    private string? CoffeeLabel(CoffeeShopVisit v)
-    {
-        if (v.CoffeeId is int cid && _coffeesById.TryGetValue(cid, out var c))
-            return c.Name;
-        return v.CoffeeOrigin;
-    }
+    private record ShopAggregate(
+        Shop Shop,
+        int VisitCount,
+        double AverageRating,
+        DateOnly? LastVisitDate,
+        string? PhotoDataUrl);
 
-    private List<CoffeeShopVisit> Filter(List<CoffeeShopVisit> list)
+    private List<ShopAggregate> Filter(List<ShopAggregate> list)
     {
         if (string.IsNullOrWhiteSpace(_search)) return list;
         var q = _search.Trim();
         var sc = StringComparison.OrdinalIgnoreCase;
-        return list.Where(v =>
-            v.ShopName.Contains(q, sc)
-            || (v.City?.Contains(q, sc) ?? false)
-            || (v.Country?.Contains(q, sc) ?? false)
-            || v.DrinkType.Contains(q, sc)
-            || (CoffeeLabel(v)?.Contains(q, sc) ?? false)
-            || (v.Notes?.Contains(q, sc) ?? false)
+        return list.Where(a =>
+            a.Shop.Name.Contains(q, sc)
+            || (a.Shop.City?.Contains(q, sc) ?? false)
+            || (a.Shop.Country?.Contains(q, sc) ?? false)
+            || (a.Shop.Address?.Contains(q, sc) ?? false)
         ).ToList();
     }
 
     protected override async Task OnInitializedAsync()
     {
-        _visits = await Db.ShopVisits.OrderBy(nameof(CoffeeShopVisit.Date)).Reverse().ToList();
-        var coffees = await Db.Coffees.ToCollection().ToList();
-        _coffeesById = coffees.ToDictionary(c => c.Id, c => c);
+        var shops = await Db.Shops.ToCollection().ToList();
+        var visits = await Db.ShopVisits.ToCollection().ToList();
+        _totalVisits = visits.Count;
+
+        var visitsByShop = visits
+            .GroupBy(v => v.ShopId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        _aggregates = shops
+            .Select(s =>
+            {
+                var vs = visitsByShop.TryGetValue(s.Id, out var list) ? list : new List<CoffeeShopVisit>();
+                var avg = vs.Count > 0 ? vs.Average(v => v.Rating) : 0;
+                var last = vs.Count > 0 ? vs.Max(v => v.Date) : (DateOnly?)null;
+                var photo = !string.IsNullOrEmpty(s.PhotoDataUrl)
+                    ? s.PhotoDataUrl
+                    : vs.OrderByDescending(v => v.Date)
+                        .Select(v => v.PhotoDataUrl)
+                        .FirstOrDefault(p => !string.IsNullOrEmpty(p));
+                return new ShopAggregate(s, vs.Count, avg, last, photo);
+            })
+            // Tri : shops avec visites récentes d'abord, puis sans visite par création récente.
+            .OrderByDescending(a => a.LastVisitDate ?? DateOnly.MinValue)
+            .ThenByDescending(a => a.Shop.CreatedAt)
+            .ToList();
+
         _loading = false;
     }
 
@@ -181,16 +215,16 @@ else
 
         if (_mapMode)
         {
-            var markers = Filter(_visits).Select(v => new
+            var markers = Filter(_aggregates).Select(a => new
             {
-                id = v.Id,
-                shopName = v.ShopName,
-                drinkType = v.DrinkType,
-                coffeeOrigin = CoffeeLabel(v),
-                rating = v.Rating,
-                latitude = v.Latitude,
-                longitude = v.Longitude,
-                dateLabel = Format.Date(v.Date)
+                id = a.Shop.Id,
+                shopName = a.Shop.Name,
+                city = a.Shop.City,
+                visitCount = a.VisitCount,
+                rating = a.VisitCount > 0 ? (int)Math.Round(a.AverageRating) : 0,
+                latitude = a.Shop.Latitude,
+                longitude = a.Shop.Longitude,
+                lastVisitLabel = a.LastVisitDate is DateOnly d ? Format.Date(d) : null
             }).ToArray();
 
             if (!_mapInitialized)

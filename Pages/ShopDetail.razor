@@ -1,0 +1,196 @@
+@page "/shops/{Id:int}"
+@inject CoffeeDb Db
+@inject NavigationManager Nav
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@inject SyncService Sync
+
+<PageTitle>@(_shop?.Name ?? "Shop")</PageTitle>
+
+<PageHeader Title="@(_shop?.Name ?? "Shop")"
+            Subtitle="@SubtitleText()"
+            Back="true" BackUrl="shops">
+    <Action>
+        @if (_shop is not null)
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Medium"
+                           OnClick="@(() => Nav.NavigateTo($"shops/{Id}/edit"))" />
+        }
+    </Action>
+</PageHeader>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+}
+else if (_shop is null)
+{
+    <MudText Class="pa-4">Shop introuvable.</MudText>
+}
+else
+{
+    <MudStack Spacing="3">
+        @if (!string.IsNullOrEmpty(_shop.PhotoDataUrl))
+        {
+            <img src="@_shop.PhotoDataUrl" alt="" class="hero-photo" />
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            @if (!string.IsNullOrEmpty(_shop.City) || !string.IsNullOrEmpty(_shop.Country))
+            {
+                <DetailRow Label="Lieu" Value="@(string.Join(", ", new[] { _shop.City, _shop.Country }.Where(s => !string.IsNullOrEmpty(s))))" />
+            }
+            @if (!string.IsNullOrEmpty(_shop.Address))
+            {
+                <DetailRow Label="Adresse" Value="@_shop.Address" />
+            }
+            @if (_shop.Latitude is not null && _shop.Longitude is not null)
+            {
+                <DetailRow Label="GPS" Value="@($"{_shop.Latitude.Value.ToString("0.#####", _inv)}, {_shop.Longitude.Value.ToString("0.#####", _inv)}")" />
+            }
+            <DetailRow Label="Ajouté le" Value="@Format.Date(DateOnly.FromDateTime(_shop.CreatedAt))" />
+        </MudPaper>
+
+        @if (!string.IsNullOrEmpty(_shop.Notes))
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <MudText Typo="Typo.overline" Class="mud-text-secondary">Notes</MudText>
+                <MudText Class="mt-1" Style="white-space: pre-wrap;">@_shop.Notes</MudText>
+            </MudPaper>
+        }
+
+        <MudPaper Class="pa-4" Elevation="0">
+            <div class="d-flex align-center justify-space-between mb-3">
+                <MudText Typo="Typo.h6">Visites (@_visits.Count)</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           Size="Size.Small"
+                           OnClick="@(() => Nav.NavigateTo($"shops/{Id}/visits/new"))">Ajouter</MudButton>
+            </div>
+            @if (_visits.Count == 0)
+            {
+                <MudText Class="mud-text-secondary">Aucune visite encore. Ajoute-en une !</MudText>
+            }
+            else
+            {
+                <div class="d-flex align-center mb-3" style="gap:8px;">
+                    <span class="mud-text-secondary" style="font-size:14px;">Moyenne :</span>
+                    <StarRating Value="@((int)Math.Round(_visits.Average(v => v.Rating)))" ReadOnly="true" Size="Size.Small" />
+                    <span class="mud-text-secondary" style="font-size:14px;">(@_visits.Average(v => v.Rating).ToString("0.0"))</span>
+                </div>
+                <MudList T="CoffeeShopVisit" Class="pa-0">
+                    @foreach (var v in _visits)
+                    {
+                        <MudListItem T="CoffeeShopVisit" OnClick="@(() => Nav.NavigateTo($"visits/{v.Id}/edit"))" Class="px-2">
+                            <div class="d-flex align-center" style="gap:10px;">
+                                @if (!string.IsNullOrEmpty(v.PhotoDataUrl))
+                                {
+                                    <img src="@v.PhotoDataUrl" alt="" class="thumb-sm" style="object-fit:cover;" />
+                                }
+                                else
+                                {
+                                    <div class="thumb-sm thumb-placeholder">
+                                        <MudIcon Icon="@Icons.Material.Filled.LocalCafe" Size="Size.Small" />
+                                    </div>
+                                }
+                                <div style="flex:1; min-width:0;">
+                                    <div class="d-flex align-center justify-space-between">
+                                        <MudText Style="font-weight:500;">@v.DrinkType</MudText>
+                                        <StarRating Value="@v.Rating" ReadOnly="true" Size="Size.Small" />
+                                    </div>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        @Format.Date(v.Date)
+                                        @{ var coffeeLabel = CoffeeLabel(v); }
+                                        @if (!string.IsNullOrEmpty(coffeeLabel)) { <span> · @coffeeLabel</span> }
+                                        @if (v.Price is decimal price) { <span> · @Format.Price(price, v.Currency)</span> }
+                                    </MudText>
+                                </div>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        </MudPaper>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                   StartIcon="@Icons.Material.Filled.Delete"
+                   OnClick="DeleteShopAsync">Supprimer le shop</MudButton>
+    </MudStack>
+}
+
+<style>
+    .hero-photo {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        max-height: 300px;
+        object-fit: cover;
+        border-radius: 18px;
+    }
+    .thumb-sm {
+        width: 36px; height: 36px; border-radius: 10px;
+    }
+    .thumb-placeholder {
+        background: var(--coffee-surface-soft); display: flex; align-items: center; justify-content: center; color: var(--coffee-accent-soft);
+    }
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _loading = true;
+    private Shop? _shop;
+    private List<CoffeeShopVisit> _visits = new();
+    private Dictionary<int, Coffee> _coffeesById = new();
+    private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    private string SubtitleText()
+    {
+        if (_shop is null) return string.Empty;
+        var loc = string.Join(", ", new[] { _shop.City, _shop.Country }.Where(s => !string.IsNullOrEmpty(s)));
+        return string.IsNullOrEmpty(loc) ? $"{_visits.Count} visite(s)" : loc;
+    }
+
+    private string? CoffeeLabel(CoffeeShopVisit v)
+    {
+        if (v.CoffeeId is int cid && _coffeesById.TryGetValue(cid, out var c))
+            return c.Name;
+        return v.CoffeeOrigin;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _shop = await Db.Shops.Get(Id);
+        if (_shop is not null)
+        {
+            var raw = await Db.ShopVisits.Where(nameof(CoffeeShopVisit.ShopId)).IsEqual(Id).ToList();
+            _visits = raw.OrderByDescending(v => v.Date).ToList();
+            var coffees = await Db.Coffees.ToCollection().ToList();
+            _coffeesById = coffees.ToDictionary(c => c.Id, c => c);
+        }
+        _loading = false;
+    }
+
+    private async Task DeleteShopAsync()
+    {
+        if (_shop is null) return;
+        var msg = _visits.Count == 0
+            ? $"Supprimer « {_shop.Name} » ?"
+            : $"Supprimer « {_shop.Name} » ainsi que ses {_visits.Count} visite(s) ?";
+        var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
+        {
+            Title = "Supprimer ?",
+            Message = msg,
+            YesText = "Supprimer",
+            CancelText = "Annuler"
+        });
+        if (ok != true) return;
+
+        // Cascade : supprimer toutes les visites avant le shop.
+        foreach (var v in _visits) await Db.ShopVisits.Delete(v.Id);
+        await Db.Shops.Delete(Id);
+        Sync.RequestPush();
+        Snackbar.Add("Shop supprimé", Severity.Info);
+        Nav.NavigateTo("shops");
+    }
+}

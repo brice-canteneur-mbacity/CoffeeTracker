@@ -17,6 +17,7 @@ public class Coffee
     public Process Process { get; set; } = Process.Washed;
     public string? ProcessNotes { get; set; }
     public bool IsDecaf { get; set; }
+    public DecafProcess? DecafMethod { get; set; }
     public bool IsOwned { get; set; } = true;
     public bool IsBlend { get; set; }
     public string? Composition { get; set; }
@@ -25,6 +26,13 @@ public class Coffee
     public int? WeightGrams { get; set; }
     public decimal? Price { get; set; }
     public string? Currency { get; set; } = "EUR";
+    /// <summary>
+    /// Ajustement manuel du stock en grammes (positif = ajouté, négatif = retiré).
+    /// Permet à l'utilisateur de recaler le stock après pesée du sac
+    /// (compense oublis de brews, mauvais brews jetés, café offert, etc.).
+    /// Stock effectif = WeightGrams + StockAdjustmentG - somme(Brew.DoseG).
+    /// </summary>
+    public decimal StockAdjustmentG { get; set; }
     public DateOnly PurchaseDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
     public string? TastingNotes { get; set; }
     public string? PhotoDataUrl { get; set; }

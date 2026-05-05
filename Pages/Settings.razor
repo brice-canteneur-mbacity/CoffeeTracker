@@ -311,14 +311,16 @@
             var coffees = await Db.Coffees.ToCollection().ToList();
             var brews = await Db.Brews.ToCollection().ToList();
             var visits = await Db.ShopVisits.ToCollection().ToList();
+            var shops = await Db.Shops.ToCollection().ToList();
             var machines = await Db.Machines.ToCollection().ToList();
 
             var data = new ExportFile
             {
-                Version = 3,
+                Version = 4,
                 ExportedAt = DateTime.UtcNow,
                 Coffees = coffees,
                 Brews = brews,
+                Shops = shops,
                 ShopVisits = visits,
                 Machines = machines
             };
@@ -327,7 +329,7 @@
             var filename = $"coffee-tracker-{DateTime.Now:yyyy-MM-dd}.json";
             await JS.InvokeVoidAsync("coffeeData.downloadJson", filename, json);
 
-            Snackbar.Add($"Sauvegarde téléchargée ({coffees.Count} cafés, {brews.Count} brews, {visits.Count} visites, {machines.Count} machines)", Severity.Success);
+            Snackbar.Add($"Sauvegarde téléchargée ({coffees.Count} cafés, {brews.Count} brews, {shops.Count} shops, {visits.Count} visites, {machines.Count} machines)", Severity.Success);
         }
         catch (Exception ex)
         {
@@ -374,7 +376,7 @@
             return;
         }
 
-        var summary = $"{parsed.Coffees?.Count ?? 0} cafés, {parsed.Brews?.Count ?? 0} brews, {parsed.ShopVisits?.Count ?? 0} visites, {parsed.Machines?.Count ?? 0} machines";
+        var summary = $"{parsed.Coffees?.Count ?? 0} cafés, {parsed.Brews?.Count ?? 0} brews, {parsed.Shops?.Count ?? 0} shops, {parsed.ShopVisits?.Count ?? 0} visites, {parsed.Machines?.Count ?? 0} machines";
         var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
         {
             Title = "Importer ?",
@@ -390,13 +392,17 @@
             await Db.Coffees.Clear();
             await Db.Brews.Clear();
             await Db.ShopVisits.Clear();
+            await Db.Shops.Clear();
             await Db.Machines.Clear();
 
             foreach (var c in parsed.Coffees ?? new()) await Db.Coffees.Put(c);
             foreach (var b in parsed.Brews ?? new()) await Db.Brews.Put(b);
+            foreach (var s in parsed.Shops ?? new()) await Db.Shops.Put(s);
             foreach (var v in parsed.ShopVisits ?? new()) await Db.ShopVisits.Put(v);
             foreach (var m in parsed.Machines ?? new()) await Db.Machines.Put(m);
 
+            // Pour un fichier v ≤ 3 (sans Shops), la migration tournera au prochain reload
+            // pour reconstruire les Shops à partir des visites.
             Snackbar.Add($"Import terminé ({summary})", Severity.Success);
         }
         catch (Exception ex)
@@ -426,6 +432,7 @@
             await Db.Coffees.Clear();
             await Db.Brews.Clear();
             await Db.ShopVisits.Clear();
+            await Db.Shops.Clear();
             await Db.Machines.Clear();
             Snackbar.Add("Toutes les données ont été supprimées", Severity.Info);
         }
@@ -441,10 +448,11 @@
 
     private class ExportFile
     {
-        public int Version { get; set; } = 3;
+        public int Version { get; set; } = 4;
         public DateTime ExportedAt { get; set; }
         public List<Coffee>? Coffees { get; set; }
         public List<Brew>? Brews { get; set; }
+        public List<Shop>? Shops { get; set; }
         public List<CoffeeShopVisit>? ShopVisits { get; set; }
         public List<Machine>? Machines { get; set; }
     }

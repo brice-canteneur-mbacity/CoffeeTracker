@@ -20,9 +20,10 @@ else
 {
     <MudStack Spacing="3">
         <MudGrid Spacing="2">
-            <MudItem xs="4"><Counter Icon="@Icons.Material.Filled.Coffee" Label="Cafés" Value="@_coffees.Count" /></MudItem>
-            <MudItem xs="4"><Counter Icon="@Icons.Material.Filled.LocalCafe" Label="Brews" Value="@_brews.Count" /></MudItem>
-            <MudItem xs="4"><Counter Icon="@Icons.Material.Filled.Storefront" Label="Shops" Value="@_visits.Count" /></MudItem>
+            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.Coffee" Label="Cafés" Value="@_coffees.Count" /></MudItem>
+            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.LocalCafe" Label="Brews" Value="@_brews.Count" /></MudItem>
+            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.Storefront" Label="Shops" Value="@_shopsCount" /></MudItem>
+            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.LocationOn" Label="Visites" Value="@_visits.Count" /></MudItem>
         </MudGrid>
 
         <MudPaper Class="pa-4" Elevation="0">
@@ -123,6 +124,7 @@ else
     private List<Coffee> _coffees = new();
     private List<Brew> _brews = new();
     private List<CoffeeShopVisit> _visits = new();
+    private int _shopsCount;
     private int _brewsLast7;
     private int _brewsLast30;
     private string _topMethodLabel = "—";
@@ -143,6 +145,7 @@ else
         _coffees = await Db.Coffees.ToCollection().ToList();
         _brews = await Db.Brews.ToCollection().ToList();
         _visits = await Db.ShopVisits.ToCollection().ToList();
+        _shopsCount = (await Db.Shops.ToCollection().ToList()).Count;
 
         var now = DateTime.Now;
         _brewsLast7 = _brews.Count(b => b.Date >= now.AddDays(-7));

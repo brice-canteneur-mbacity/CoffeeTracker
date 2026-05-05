@@ -35,7 +35,8 @@ public class AlertsService(CoffeeDb db, IJSRuntime js)
                 var used = brewsByCoffee.TryGetValue(c.Id, out var bs)
                     ? bs.Sum(b => b.DoseG ?? 0m)
                     : 0m;
-                var remaining = total - used;
+                // Inclut l'ajustement manuel : Stock = Weight + adjustment - used.
+                var remaining = total + c.StockAdjustmentG - used;
                 if (remaining <= 0m)
                 {
                     alerts.Add(new CoffeeAlert(
