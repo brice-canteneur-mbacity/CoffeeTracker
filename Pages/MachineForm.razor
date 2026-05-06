@@ -110,7 +110,8 @@
     private Machine _model = new();
     private DateTime? _purchaseDate;
     private bool _saving;
-    private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+    /// <summary>Culture de saisie utilisateur (FR/EN/IT) — pour que la virgule décimale soit bien parsée.</summary>
+    private System.Globalization.CultureInfo _inv => System.Globalization.CultureInfo.CurrentCulture;
 
     protected override void OnInitialized() => Loc.LanguageChanged += OnLangChanged;
     private void OnLangChanged() => InvokeAsync(StateHasChanged);

@@ -176,7 +176,8 @@ else
     private bool _loadingShop = true;
     private DateTime? _date = DateTime.Today;
     private bool _saving;
-    private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+    /// <summary>Culture de saisie utilisateur (FR/EN/IT) — interprète correctement le séparateur décimal.</summary>
+    private System.Globalization.CultureInfo _inv => System.Globalization.CultureInfo.CurrentCulture;
     private List<Coffee> _allCoffees = new();
     private List<string> _knownCoffees = new();
     private List<string> _knownDrinks = new();

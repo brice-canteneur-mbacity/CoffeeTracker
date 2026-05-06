@@ -135,7 +135,7 @@
                     <MudNumericField T="decimal?" Value="_model.DoseG"
                                      ValueChanged="OnDoseChanged"
                                      Label="@Loc.T("brewform.field_dose")" Variant="Variant.Outlined"
-                                     Format="0.#" Culture="@_inv" Min="0m" Immediate="true" />
+                                     Format="0.#" Culture="@_userCulture" Min="0m" Immediate="true" />
                 </MudItem>
                 <MudItem xs="6">
                     <MudTextField Value="@YieldDisplay"
@@ -197,7 +197,11 @@
     private List<Machine> _allBrewers = new();
     private List<Machine> _grinders = new();
     private bool _saving;
+    /// <summary>InvariantCulture pour formatage interne (affichage YieldDisplay).</summary>
     private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+    /// <summary>Culture de saisie utilisateur — suit la langue active (FR/EN/IT) pour que la virgule
+    /// et le point soient bien interprétés selon le clavier de l'utilisateur (3,8 en FR vs 3.8 en EN).</summary>
+    private System.Globalization.CultureInfo _userCulture => System.Globalization.CultureInfo.CurrentCulture;
 
     private decimal? _targetRatio;
     private readonly (string Label, decimal Value)[] _ratioPresets =

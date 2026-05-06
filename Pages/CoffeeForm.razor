@@ -179,7 +179,9 @@
     private DateTime? _purchaseDate = DateTime.Today;
     private DateTime? _roastDate;
     private bool _saving;
-    private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+    /// <summary>Culture de saisie utilisateur (suit la langue active : FR/EN/IT) — interprète
+    /// correctement la virgule ou le point décimal selon la convention locale.</summary>
+    private System.Globalization.CultureInfo _inv => System.Globalization.CultureInfo.CurrentCulture;
 
     protected override void OnInitialized() => Loc.LanguageChanged += OnLangChanged;
     private void OnLangChanged() => InvokeAsync(StateHasChanged);

@@ -1,5 +1,5 @@
 using System.Globalization;
-using System.Net.Http.Json;
+using System.Text.Json;
 using CoffeeTracker.Models;
 using Microsoft.JSInterop;
 
@@ -22,7 +22,6 @@ public class LocalizationService
     public const string DefaultLanguage = "fr";
 
     private readonly IJSRuntime _js;
-    private readonly HttpClient _http;
     private readonly Dictionary<string, Dictionary<string, string>> _dicts = new();
 
     /// <summary>Code de la langue courante ("fr" / "en" / "it"). Lecture seule depuis l'extérieur.</summary>
@@ -34,10 +33,9 @@ public class LocalizationService
     /// <summary>Émis quand <see cref="SetLanguageAsync"/> change la langue active.</summary>
     public event Action? LanguageChanged;
 
-    public LocalizationService(IJSRuntime js, HttpClient http)
+    public LocalizationService(IJSRuntime js)
     {
         _js = js;
-        _http = http;
     }
 
     /// <summary>
@@ -130,10 +128,29 @@ public class LocalizationService
 
     private async Task LoadAsync(string lang)
     {
-        // Cache busting pour ne pas se faire piéger par le service worker quand on update les JSON.
-        var dict = await _http.GetFromJsonAsync<Dictionary<string, string>>(
-            $"i18n/{lang}.json?v={DateTime.UtcNow.Ticks}");
-        if (dict is not null) _dicts[lang] = dict;
+        // Passage par fetch JS natif au lieu de HttpClient : plus fiable sur Safari et en mode PWA
+        // installé (iOS), où HttpClient peut échouer silencieusement à cause de spécificités du
+        // service worker / de l'environnement WASM. JsonElement permet une déserialisation
+        // sans pré-typage côté JS interop.
+        try
+        {
+            var raw = await _js.InvokeAsync<JsonElement?>("coffeeI18n.loadDict", lang);
+            if (raw is null || raw.Value.ValueKind != JsonValueKind.Object) return;
+
+            var dict = new Dictionary<string, string>();
+            foreach (var prop in raw.Value.EnumerateObject())
+            {
+                if (prop.Value.ValueKind == JsonValueKind.String)
+                    dict[prop.Name] = prop.Value.GetString() ?? string.Empty;
+            }
+            if (dict.Count > 0) _dicts[lang] = dict;
+        }
+        catch (Exception ex)
+        {
+            // On log mais on ne crashe pas — le caller (App.razor) continue avec dict vide,
+            // ce qui retombe sur les libellés [Description] (FR) via le fallback enum.
+            Console.Error.WriteLine($"[LocalizationService] LoadAsync({lang}) failed: {ex.Message}");
+        }
     }
 
     private static void ApplyCulture(string lang)
