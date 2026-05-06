@@ -4,15 +4,17 @@
     La suppression cascade : on supprime d'abord les visites, puis le shop.
 *@
 @page "/shops/{Id:int}"
+@implements IDisposable
 @inject CoffeeDb Db
 @inject NavigationManager Nav
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
 @inject SyncService Sync
+@inject LocalizationService Loc
 
-<PageTitle>@(_shop?.Name ?? "Shop")</PageTitle>
+<PageTitle>@(_shop?.Name ?? Loc.T("nav.shops"))</PageTitle>
 
-<PageHeader Title="@(_shop?.Name ?? "Shop")"
+<PageHeader Title="@(_shop?.Name ?? Loc.T("nav.shops"))"
             Subtitle="@SubtitleText()"
             Back="true" BackUrl="shops">
     <Action>
@@ -30,7 +32,7 @@
 }
 else if (_shop is null)
 {
-    <MudText Class="pa-4">Shop introuvable.</MudText>
+    <MudText Class="pa-4">@Loc.T("shopdetail.not_found")</MudText>
 }
 else
 {
@@ -43,43 +45,43 @@ else
         <MudPaper Class="pa-4" Elevation="0">
             @if (!string.IsNullOrEmpty(_shop.City) || !string.IsNullOrEmpty(_shop.Country))
             {
-                <DetailRow Label="Lieu" Value="@(string.Join(", ", new[] { _shop.City, _shop.Country }.Where(s => !string.IsNullOrEmpty(s))))" />
+                <DetailRow Label="@Loc.T("shopdetail.label_location")" Value="@(string.Join(", ", new[] { _shop.City, _shop.Country }.Where(s => !string.IsNullOrEmpty(s))))" />
             }
             @if (!string.IsNullOrEmpty(_shop.Address))
             {
-                <DetailRow Label="Adresse" Value="@_shop.Address" />
+                <DetailRow Label="@Loc.T("shopdetail.label_address")" Value="@_shop.Address" />
             }
             @if (_shop.Latitude is not null && _shop.Longitude is not null)
             {
-                <DetailRow Label="GPS" Value="@($"{_shop.Latitude.Value.ToString("0.#####", _inv)}, {_shop.Longitude.Value.ToString("0.#####", _inv)}")" />
+                <DetailRow Label="@Loc.T("shopdetail.label_gps")" Value="@($"{_shop.Latitude.Value.ToString("0.#####", _inv)}, {_shop.Longitude.Value.ToString("0.#####", _inv)}")" />
             }
-            <DetailRow Label="Ajouté le" Value="@Format.Date(DateOnly.FromDateTime(_shop.CreatedAt))" />
+            <DetailRow Label="@Loc.T("shopdetail.label_added")" Value="@Format.Date(DateOnly.FromDateTime(_shop.CreatedAt))" />
         </MudPaper>
 
         @if (!string.IsNullOrEmpty(_shop.Notes))
         {
             <MudPaper Class="pa-4" Elevation="0">
-                <MudText Typo="Typo.overline" Class="mud-text-secondary">Notes</MudText>
+                <MudText Typo="Typo.overline" Class="mud-text-secondary">@Loc.T("shopdetail.section_notes")</MudText>
                 <MudText Class="mt-1" Style="white-space: pre-wrap;">@_shop.Notes</MudText>
             </MudPaper>
         }
 
         <MudPaper Class="pa-4" Elevation="0">
             <div class="d-flex align-center justify-space-between mb-3">
-                <MudText Typo="Typo.h6">Visites (@_visits.Count)</MudText>
+                <MudText Typo="Typo.h6">@Loc.T("shopdetail.section_visits", _visits.Count)</MudText>
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
                            Size="Size.Small"
-                           OnClick="@(() => Nav.NavigateTo($"shops/{Id}/visits/new"))">Ajouter</MudButton>
+                           OnClick="@(() => Nav.NavigateTo($"shops/{Id}/visits/new"))">@Loc.T("common.add")</MudButton>
             </div>
             @if (_visits.Count == 0)
             {
-                <MudText Class="mud-text-secondary">Aucune visite encore. Ajoute-en une !</MudText>
+                <MudText Class="mud-text-secondary">@Loc.T("shopdetail.visits_empty")</MudText>
             }
             else
             {
                 <div class="d-flex align-center mb-3" style="gap:8px;">
-                    <span class="mud-text-secondary" style="font-size:14px;">Moyenne :</span>
+                    <span class="mud-text-secondary" style="font-size:14px;">@Loc.T("shopdetail.visits_average")</span>
                     <StarRating Value="@((int)Math.Round(_visits.Average(v => v.Rating)))" ReadOnly="true" Size="Size.Small" />
                     <span class="mud-text-secondary" style="font-size:14px;">(@_visits.Average(v => v.Rating).ToString("0.0"))</span>
                 </div>
@@ -120,7 +122,7 @@ else
 
         <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
                    StartIcon="@Icons.Material.Filled.Delete"
-                   OnClick="DeleteShopAsync">Supprimer le shop</MudButton>
+                   OnClick="DeleteShopAsync">@Loc.T("shopdetail.btn_delete_shop")</MudButton>
     </MudStack>
 }
 
@@ -152,8 +154,10 @@ else
     private string SubtitleText()
     {
         if (_shop is null) return string.Empty;
-        var loc = string.Join(", ", new[] { _shop.City, _shop.Country }.Where(s => !string.IsNullOrEmpty(s)));
-        return string.IsNullOrEmpty(loc) ? $"{_visits.Count} visite(s)" : loc;
+        var locStr = string.Join(", ", new[] { _shop.City, _shop.Country }.Where(s => !string.IsNullOrEmpty(s)));
+        return string.IsNullOrEmpty(locStr)
+            ? Loc.T("shopdetail.subtitle_visits", _visits.Count)
+            : locStr;
     }
 
     private string? CoffeeLabel(CoffeeShopVisit v)
@@ -162,6 +166,10 @@ else
             return c.Name;
         return v.CoffeeOrigin;
     }
+
+    protected override void OnInitialized() => Loc.LanguageChanged += OnLangChanged;
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -181,14 +189,14 @@ else
     {
         if (_shop is null) return;
         var msg = _visits.Count == 0
-            ? $"Supprimer « {_shop.Name} » ?"
-            : $"Supprimer « {_shop.Name} » ainsi que ses {_visits.Count} visite(s) ?";
+            ? Loc.T("shopdetail.delete_msg_no_visits", _shop.Name)
+            : Loc.T("shopdetail.delete_msg_with_visits", _shop.Name, _visits.Count);
         var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
         {
-            Title = "Supprimer ?",
+            Title = Loc.T("shopdetail.delete_title"),
             Message = msg,
-            YesText = "Supprimer",
-            CancelText = "Annuler"
+            YesText = Loc.T("common.delete"),
+            CancelText = Loc.T("common.cancel")
         });
         if (ok != true) return;
 
@@ -196,7 +204,7 @@ else
         foreach (var v in _visits) await Db.ShopVisits.Delete(v.Id);
         await Db.Shops.Delete(Id);
         Sync.RequestPush();
-        Snackbar.Add("Shop supprimé", Severity.Info);
+        Snackbar.Add(Loc.T("shopdetail.snack_deleted"), Severity.Info);
         Nav.NavigateTo("shops");
     }
 }

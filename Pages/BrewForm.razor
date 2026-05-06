@@ -10,15 +10,17 @@
 *@
 @page "/brews/new"
 @page "/brews/{Id:int}/edit"
+@implements IDisposable
 @inject CoffeeDb Db
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 @inject SyncService Sync
+@inject LocalizationService Loc
 
-<PageTitle>@(IsEdit ? "Modifier le brew" : "Nouveau brew")</PageTitle>
+<PageTitle>@(IsEdit ? Loc.T("brewform.title_edit") : Loc.T("brewform.title_new"))</PageTitle>
 
-<PageHeader Title="@(IsEdit ? "Modifier le brew" : "Nouveau brew")" Back="true" BackUrl="brews" />
+<PageHeader Title="@(IsEdit ? Loc.T("brewform.title_edit") : Loc.T("brewform.title_new"))" Back="true" BackUrl="brews" />
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync">
     <DataAnnotationsValidator />
@@ -26,29 +28,29 @@
     <MudStack Spacing="4">
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudSelect T="int" @bind-Value="_model.CoffeeId" Label="Café *" Variant="Variant.Outlined" Required="true" RequiredError="Sélectionne un café">
+            <MudSelect T="int" @bind-Value="_model.CoffeeId" Label="@Loc.T("brewform.field_coffee")" Variant="Variant.Outlined" Required="true" RequiredError="@Loc.T("brewform.field_coffee_required")">
                 @foreach (var c in _coffees)
                 {
-                    <MudSelectItem T="int" Value="@c.Id">@c.Roaster · @c.Name@(c.FinishedAt is null ? "" : " (terminé)")</MudSelectItem>
+                    <MudSelectItem T="int" Value="@c.Id">@c.Roaster · @c.Name@(c.FinishedAt is null ? "" : $" {Loc.T("brewform.field_coffee_finished")}")</MudSelectItem>
                 }
             </MudSelect>
             @if (_coffees.Count == 0)
             {
-                <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1">Crée d'abord un café dans l'onglet Cafés.</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1">@Loc.T("brewform.no_coffee_hint")</MudText>
             }
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
             <MudGrid Spacing="2">
                 <MudItem xs="6">
-                    <MudDatePicker @bind-Date="_date" Label="Date" Variant="Variant.Outlined" Editable="true" />
+                    <MudDatePicker @bind-Date="_date" Label="@Loc.T("brewform.field_date")" Variant="Variant.Outlined" Editable="true" />
                 </MudItem>
                 <MudItem xs="6">
-                    <MudTimePicker @bind-Time="_time" Label="Heure" Variant="Variant.Outlined" Editable="true" />
+                    <MudTimePicker @bind-Time="_time" Label="@Loc.T("brewform.field_time")" Variant="Variant.Outlined" Editable="true" />
                 </MudItem>
             </MudGrid>
             <MudSelect T="BrewMethod" Value="_model.Method" ValueChanged="OnMethodChanged"
-                       Label="Méthode" Variant="Variant.Outlined" Class="mt-3">
+                       Label="@Loc.T("brewform.field_method")" Variant="Variant.Outlined" Class="mt-3">
                 @foreach (var m in Enum.GetValues<BrewMethod>())
                 {
                     <MudSelectItem T="BrewMethod" Value="@m">@m.GetLabel()</MudSelectItem>
@@ -58,11 +60,11 @@
 
         @{ var brewers = CurrentBrewers(); }
         <MudPaper Class="pa-4" Elevation="0">
-            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Machines utilisées (optionnel)</MudText>
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("brewform.section_machines")</MudText>
 
             <MudSelect T="int?" @bind-Value="_model.BrewerMachineId" Label="@BrewerLabel()"
                        Variant="Variant.Outlined" Clearable="true" Class="mb-3">
-                <MudSelectItem T="int?" Value="@((int?)null)">— Aucune —</MudSelectItem>
+                <MudSelectItem T="int?" Value="@((int?)null)">@Loc.T("brewform.field_machine_none")</MudSelectItem>
                 @foreach (var m in brewers)
                 {
                     <MudSelectItem T="int?" Value="@m.Id">@m.Name <span class="mud-text-secondary" style="font-size:11px;">· @m.Type.GetLabel()</span></MudSelectItem>
@@ -71,13 +73,13 @@
             @if (brewers.Count == 0)
             {
                 <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block" Style="margin-top:-8px;">
-                    Aucune machine compatible enregistrée — tu peux en ajouter dans l'onglet « Machines ».
+                    @Loc.T("brewform.no_brewer_hint")
                 </MudText>
             }
 
-            <MudSelect T="int?" @bind-Value="_model.GrinderId" Label="Moulin"
+            <MudSelect T="int?" @bind-Value="_model.GrinderId" Label="@Loc.T("brewform.field_grinder")"
                        Variant="Variant.Outlined" Clearable="true">
-                <MudSelectItem T="int?" Value="@((int?)null)">— Aucun —</MudSelectItem>
+                <MudSelectItem T="int?" Value="@((int?)null)">@Loc.T("brewform.field_grinder_none")</MudSelectItem>
                 @foreach (var m in _grinders)
                 {
                     <MudSelectItem T="int?" Value="@m.Id">@m.Name</MudSelectItem>
@@ -86,7 +88,7 @@
             @if (_grinders.Count == 0)
             {
                 <MudText Typo="Typo.caption" Class="mud-text-secondary d-block" Style="margin-top:4px;">
-                    Aucun moulin enregistré.
+                    @Loc.T("brewform.no_grinder_hint")
                 </MudText>
             }
         </MudPaper>
@@ -94,7 +96,7 @@
         <MudPaper Class="pa-4" Elevation="0">
             <div class="d-flex align-center justify-space-between">
                 <div>
-                    <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Score</MudText>
+                    <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("brewform.section_score")</MudText>
                     <StarRating Value="@_model.Rating" ValueChanged="@((int v) => _model.Rating = v)" Size="Size.Large" />
                 </div>
                 <MudIconButton
@@ -102,14 +104,14 @@
                     Color="@(_model.IsFavorite ? Color.Error : Color.Default)"
                     Size="Size.Large"
                     OnClick="@(() => _model.IsFavorite = !_model.IsFavorite)"
-                    aria-label="Favori" />
+                    aria-label="@Loc.T("brewform.fav_aria")" />
             </div>
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Recette</MudText>
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("brewform.section_recipe")</MudText>
 
-            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">Ratio cible</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">@Loc.T("brewform.field_target_ratio")</MudText>
             <div class="d-flex flex-wrap mb-3" style="gap:6px;">
                 @foreach (var preset in _ratioPresets)
                 {
@@ -124,7 +126,7 @@
                          Variant="@(_targetRatio is null ? Variant.Filled : Variant.Outlined)"
                          Color="@(_targetRatio is null ? Color.Primary : Color.Default)"
                          OnClick="@(() => SetRatio(null, null))">
-                    Aucun
+                    @Loc.T("brewform.field_ratio_none")
                 </MudChip>
             </div>
 
@@ -132,23 +134,23 @@
                 <MudItem xs="6">
                     <MudNumericField T="decimal?" Value="_model.DoseG"
                                      ValueChanged="OnDoseChanged"
-                                     Label="Dose (g)" Variant="Variant.Outlined"
+                                     Label="@Loc.T("brewform.field_dose")" Variant="Variant.Outlined"
                                      Format="0.#" Culture="@_inv" Min="0m" Immediate="true" />
                 </MudItem>
                 <MudItem xs="6">
                     <MudTextField Value="@YieldDisplay"
-                                  Label="Yield (g)" Variant="Variant.Outlined"
+                                  Label="@Loc.T("brewform.field_yield")" Variant="Variant.Outlined"
                                   ReadOnly="true"
                                   HelperText="@YieldHint" />
                 </MudItem>
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="_model.GrindSize" Label="Mouture"
-                                  Variant="Variant.Outlined" Placeholder="ex : Niche 15 ; medium-fine" />
+                    <MudTextField @bind-Value="_model.GrindSize" Label="@Loc.T("brewform.field_grind")"
+                                  Variant="Variant.Outlined" Placeholder="@Loc.T("brewform.field_grind_placeholder")" />
                 </MudItem>
                 <MudItem xs="12">
                     <MudSelect T="MilkType?" @bind-Value="_model.Milk"
-                               Label="Lait (optionnel)" Variant="Variant.Outlined" Clearable="true">
-                        <MudSelectItem T="MilkType?" Value="@((MilkType?)null)">— Sans lait —</MudSelectItem>
+                               Label="@Loc.T("brewform.field_milk")" Variant="Variant.Outlined" Clearable="true">
+                        <MudSelectItem T="MilkType?" Value="@((MilkType?)null)">@Loc.T("brewform.field_milk_none")</MudSelectItem>
                         @foreach (var m in Enum.GetValues<MilkType>())
                         {
                             <MudSelectItem T="MilkType?" Value="@m">@m.GetLabel()</MudSelectItem>
@@ -159,12 +161,12 @@
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudTextField @bind-Value="_model.Notes" Label="Notes de dégustation" Variant="Variant.Outlined" Lines="4" Placeholder="ex : floral, sucré, finale propre" />
+            <MudTextField @bind-Value="_model.Notes" Label="@Loc.T("brewform.field_notes")" Variant="Variant.Outlined" Lines="4" Placeholder="@Loc.T("brewform.field_notes_placeholder")" />
         </MudPaper>
 
         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
                    StartIcon="@Icons.Material.Filled.Save" Disabled="_saving">
-            @(IsEdit ? "Enregistrer" : "Créer le brew")
+            @(IsEdit ? Loc.T("common.save") : Loc.T("brewform.btn_create"))
         </MudButton>
 
         @if (IsEdit)
@@ -172,11 +174,11 @@
             <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
                        StartIcon="@Icons.Material.Filled.Replay"
                        OnClick="@(() => Nav.NavigateTo($"brews/new?fromBrewId={Id}"))">
-                Refaire ce brew
+                @Loc.T("brewform.btn_redo")
             </MudButton>
 
             <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteAsync">Supprimer</MudButton>
+                       StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteAsync">@Loc.T("common.delete")</MudButton>
         }
 
     </MudStack>
@@ -215,9 +217,9 @@
     {
         get
         {
-            if (_targetRatio is null) return "Choisis un ratio cible";
-            if (_model.DoseG is null or 0m) return "Saisis la dose";
-            return $"Auto : dose × {_model.Ratio}";
+            if (_targetRatio is null) return Loc.T("brewform.yield_hint_no_ratio");
+            if (_model.DoseG is null or 0m) return Loc.T("brewform.yield_hint_no_dose");
+            return Loc.T("brewform.yield_hint_auto", _model.Ratio ?? "");
         }
     }
 
@@ -248,6 +250,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Loc.LanguageChanged += OnLangChanged;
         // Charges qui ne dépendent pas des paramètres de route — une seule fois.
         // Pour un brew on ne propose que les cafés possédés (avec stock potentiel) ;
         // les cafés « dégustés » ne se brassent pas à la maison.
@@ -258,6 +261,9 @@
         _allBrewers = allMachines.Where(m => m.Type.IsBrewer()).ToList();
         _grinders = allMachines.Where(m => m.Type == MachineType.Grinder).ToList();
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -331,7 +337,7 @@
     private string BrewerLabel()
     {
         var t = MachineTypeOrder.BrewerTypeFor(_model.Method);
-        return t is null ? "Machine" : $"Machine ({t.Value.GetLabel()})";
+        return t is null ? Loc.T("brewform.field_machine") : Loc.T("brewform.field_machine_typed", t.Value.GetLabel());
     }
 
     private void OnMethodChanged(BrewMethod m)
@@ -358,21 +364,21 @@
             {
                 _model.Id = Id!.Value;
                 await Db.Brews.Put(_model);
-                Snackbar.Add("Brew enregistré", Severity.Success);
+                Snackbar.Add(Loc.T("brewform.snack_saved"), Severity.Success);
             }
             else
             {
                 _model.CreatedAt = DateTime.UtcNow;
                 _model.Id = 0;
                 await Db.Brews.Add(_model);
-                Snackbar.Add("Brew créé", Severity.Success);
+                Snackbar.Add(Loc.T("brewform.snack_created"), Severity.Success);
             }
             Sync.RequestPush();
             Nav.NavigateTo("brews");
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("common.error_prefix", ex.Message), Severity.Error);
         }
         finally
         {
@@ -384,15 +390,15 @@
     {
         var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
         {
-            Title = "Supprimer ?",
-            Message = "Supprimer ce brew ?",
-            YesText = "Supprimer",
-            CancelText = "Annuler"
+            Title = Loc.T("brewform.delete_title"),
+            Message = Loc.T("brewform.delete_msg"),
+            YesText = Loc.T("common.delete"),
+            CancelText = Loc.T("common.cancel")
         });
         if (ok != true || Id is null) return;
         await Db.Brews.Delete(Id.Value);
         Sync.RequestPush();
-        Snackbar.Add("Brew supprimé", Severity.Info);
+        Snackbar.Add(Loc.T("brewform.snack_deleted"), Severity.Info);
         Nav.NavigateTo("brews");
     }
 }

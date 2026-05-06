@@ -7,6 +7,7 @@
 @implements IDisposable
 @inject NavigationManager Nav
 @inject SyncService Sync
+@inject LocalizationService Loc
 
 <div class="page-header">
     @if (Back)
@@ -29,7 +30,7 @@
                            OnClick="OnSyncClickAsync"
                            Disabled="Sync.IsBusy"
                            Class="@($"page-header-sync {(Sync.IsBusy ? "is-syncing" : "")}")"
-                           aria-label="Synchroniser" />
+                           aria-label="@Loc.T("header.sync_aria")" />
         </MudTooltip>
     }
     @if (Action is not null)
@@ -92,11 +93,16 @@
     protected override void OnInitialized()
     {
         Sync.StateChanged += OnSyncChanged;
+        Loc.LanguageChanged += OnSyncChanged; // même handler : on rerendre
     }
 
     private void OnSyncChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Sync.StateChanged -= OnSyncChanged;
+    public void Dispose()
+    {
+        Sync.StateChanged -= OnSyncChanged;
+        Loc.LanguageChanged -= OnSyncChanged;
+    }
 
     private void GoBack() => Nav.NavigateTo(BackUrl ?? string.Empty);
 
@@ -114,17 +120,17 @@
     {
         get
         {
-            if (Sync.IsBusy) return "Synchronisation en cours…";
-            if (Sync.LastError is not null) return $"Erreur sync : {Sync.LastError}";
+            if (Sync.IsBusy) return Loc.T("header.sync_busy");
+            if (Sync.LastError is not null) return Loc.T("header.sync_error", Sync.LastError);
             if (Sync.LastSync is DateTime ls)
             {
                 var ago = DateTime.UtcNow - ls;
-                if (ago.TotalSeconds < 60) return "Synchronisé à l'instant";
-                if (ago.TotalMinutes < 60) return $"Synchronisé il y a {(int)ago.TotalMinutes} min";
-                if (ago.TotalHours < 24) return $"Synchronisé il y a {(int)ago.TotalHours} h";
-                return $"Dernière sync : {ls.ToLocalTime():dd/MM HH:mm}";
+                if (ago.TotalSeconds < 60) return Loc.T("header.sync_just_now");
+                if (ago.TotalMinutes < 60) return Loc.T("header.sync_minutes_ago", (int)ago.TotalMinutes);
+                if (ago.TotalHours < 24) return Loc.T("header.sync_hours_ago", (int)ago.TotalHours);
+                return Loc.T("header.sync_last", ls.ToLocalTime().ToString("dd/MM HH:mm"));
             }
-            return "Synchroniser maintenant";
+            return Loc.T("header.sync_idle");
         }
     }
 

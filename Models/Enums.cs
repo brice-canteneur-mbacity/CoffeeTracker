@@ -140,14 +140,44 @@ public enum BrewMethod
     [Description("Autre")] Other
 }
 
-/// <summary>Extensions de mapping pour récupérer le libellé français d'une valeur d'enum.</summary>
+/// <summary>
+/// Extensions de mapping pour récupérer le libellé localisé d'une valeur d'enum.
+/// Si un <c>LocalizationService</c> a été enregistré via <see cref="SetLocalizer"/> (au démarrage
+/// de l'app), <see cref="GetLabel"/> renvoie la traduction de la langue courante. Sinon
+/// (avant init, ou clé manquante), fallback sur l'attribut <see cref="DescriptionAttribute"/>
+/// posé sur la valeur d'enum (= la version française historique).
+/// </summary>
 public static class EnumExtensions
 {
     /// <summary>
-    /// Renvoie le <see cref="DescriptionAttribute"/> associé à la valeur d'enum, ou son nom
-    /// .ToString() en fallback si l'attribut n'est pas posé.
+    /// Référence vers le service de localisation. Settée par <c>LocalizationService.InitializeAsync</c>
+    /// au démarrage. Pattern statique acceptable ici : Blazor WASM est mono-utilisateur mono-onglet,
+    /// pas de risque de course condition multi-tenant.
+    /// </summary>
+    private static object? _loc;
+
+    /// <summary>Installe la passerelle vers le service de localisation (appelé au boot).</summary>
+    internal static void SetLocalizer(object loc) => _loc = loc;
+
+    /// <summary>
+    /// Renvoie le libellé d'affichage d'une valeur d'enum, dans la langue courante si le
+    /// localizer est initialisé, sinon en français via <see cref="DescriptionAttribute"/>.
     /// </summary>
     public static string GetLabel(this Enum value)
+    {
+        // L'appel au localizer est fait via reflection minimal pour éviter une dépendance
+        // circulaire entre Models et Lib (ou pour découpler en cas de futur projet partagé).
+        if (_loc is not null)
+        {
+            var method = _loc.GetType().GetMethod("TEnum");
+            if (method?.Invoke(_loc, new object[] { value }) is string s && !string.IsNullOrEmpty(s))
+                return s;
+        }
+        return GetDescriptionFallback(value);
+    }
+
+    /// <summary>Lit l'attribut <see cref="DescriptionAttribute"/> directement (utilisé comme fallback).</summary>
+    public static string GetDescriptionFallback(Enum value)
     {
         var field = value.GetType().GetField(value.ToString());
         if (field is null) return value.ToString();

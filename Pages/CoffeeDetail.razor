@@ -7,15 +7,17 @@
     La liste de brews permet aussi un « Refaire ce brew » qui navigue vers /brews/new?fromBrewId=X.
 *@
 @page "/coffees/{Id:int}"
+@implements IDisposable
 @inject CoffeeDb Db
 @inject NavigationManager Nav
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
 @inject SyncService Sync
+@inject LocalizationService Loc
 
-<PageTitle>@(_coffee?.Name ?? "Café")</PageTitle>
+<PageTitle>@(_coffee?.Name ?? Loc.T("nav.coffees"))</PageTitle>
 
-<PageHeader Title="@(_coffee?.Name ?? "Café")"
+<PageHeader Title="@(_coffee?.Name ?? Loc.T("nav.coffees"))"
             Subtitle="@(_coffee?.Roaster ?? string.Empty)"
             Back="true" BackUrl="coffees">
     <Action>
@@ -33,7 +35,7 @@
 }
 else if (_coffee is null)
 {
-    <MudText Class="pa-4">Café introuvable.</MudText>
+    <MudText Class="pa-4">@Loc.T("coffeedetail.not_found")</MudText>
 }
 else
 {
@@ -46,73 +48,73 @@ else
         <MudPaper Class="pa-4" Elevation="0">
             @if (_coffee.IsBlend)
             {
-                <DetailRow Label="Type" Value="Blend" />
+                <DetailRow Label="@Loc.T("coffeedetail.label_type")" Value="@Loc.T("coffeedetail.value_blend")" />
                 @if (!string.IsNullOrEmpty(_coffee.Composition))
                 {
-                    <DetailRow Label="Composition" Value="@_coffee.Composition" />
+                    <DetailRow Label="@Loc.T("coffeedetail.label_composition")" Value="@_coffee.Composition" />
                 }
             }
             else
             {
-                <DetailRow Label="Origine" Value="@OriginLine()" />
+                <DetailRow Label="@Loc.T("coffeedetail.label_origin")" Value="@OriginLine()" />
                 @if (!string.IsNullOrEmpty(_coffee.Producer))
                 {
-                    <DetailRow Label="Producteur" Value="@_coffee.Producer" />
+                    <DetailRow Label="@Loc.T("coffeedetail.label_producer")" Value="@_coffee.Producer" />
                 }
                 @if (!string.IsNullOrEmpty(_coffee.Altitude))
                 {
-                    <DetailRow Label="Altitude" Value="@_coffee.Altitude" />
+                    <DetailRow Label="@Loc.T("coffeedetail.label_altitude")" Value="@_coffee.Altitude" />
                 }
                 @if (!string.IsNullOrEmpty(_coffee.Variety))
                 {
-                    <DetailRow Label="Variété" Value="@_coffee.Variety" />
+                    <DetailRow Label="@Loc.T("coffeedetail.label_variety")" Value="@_coffee.Variety" />
                 }
             }
-            <DetailRow Label="Process" Value="@_coffee.Process.GetLabel()" />
+            <DetailRow Label="@Loc.T("coffeedetail.label_process")" Value="@_coffee.Process.GetLabel()" />
             @if (!string.IsNullOrEmpty(_coffee.ProcessNotes))
             {
-                <DetailRow Label="Notes process" Value="@_coffee.ProcessNotes" />
+                <DetailRow Label="@Loc.T("coffeedetail.label_process_notes")" Value="@_coffee.ProcessNotes" />
             }
-            <DetailRow Label="Caféine" Value="@(_coffee.IsDecaf ? "Décaféiné" : "Normal")" />
+            <DetailRow Label="@Loc.T("coffeedetail.label_caffeine")" Value="@(_coffee.IsDecaf ? Loc.T("coffeedetail.value_decaf") : Loc.T("coffeedetail.value_normal"))" />
             @if (_coffee.IsDecaf && _coffee.DecafMethod is not null)
             {
-                <DetailRow Label="Méthode décaf" Value="@_coffee.DecafMethod.Value.GetLabel()" />
+                <DetailRow Label="@Loc.T("coffeedetail.label_decaf_method")" Value="@_coffee.DecafMethod.Value.GetLabel()" />
             }
             @if (_coffee.RoastLevel is not null)
             {
-                <DetailRow Label="Torréfaction" Value="@_coffee.RoastLevel.Value.GetLabel()" />
+                <DetailRow Label="@Loc.T("coffeedetail.label_roast_level")" Value="@_coffee.RoastLevel.Value.GetLabel()" />
             }
             @if (_coffee.RoastDate is not null)
             {
                 var days = Format.DaysSince(_coffee.RoastDate);
-                <DetailRow Label="Date de torréfaction"
-                           Value="@($"{Format.Date(_coffee.RoastDate)}{(days is null ? "" : $" · il y a {days}j")}")" />
+                <DetailRow Label="@Loc.T("coffeedetail.label_roast_date")"
+                           Value="@($"{Format.Date(_coffee.RoastDate)}{(days is null ? "" : $" · {Loc.T("coffeedetail.days_ago", days)}")}")" />
             }
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
-            <DetailRow Label="Type" Value="@(_coffee.IsOwned ? "Possédé" : "Dégusté en boutique")" />
+            <DetailRow Label="@Loc.T("coffeedetail.label_owned")" Value="@(_coffee.IsOwned ? Loc.T("coffeedetail.value_owned") : Loc.T("coffeedetail.value_tasted"))" />
             @if (_coffee.IsOwned)
             {
-                <DetailRow Label="Achat" Value="@Format.Date(_coffee.PurchaseDate)" />
+                <DetailRow Label="@Loc.T("coffeedetail.label_purchase")" Value="@Format.Date(_coffee.PurchaseDate)" />
                 @if (_coffee.WeightGrams is not null)
                 {
-                    <DetailRow Label="Poids" Value="@($"{_coffee.WeightGrams} g")" />
+                    <DetailRow Label="@Loc.T("coffeedetail.label_weight")" Value="@($"{_coffee.WeightGrams} g")" />
                 }
                 @if (_coffee.Price is not null)
                 {
-                    <DetailRow Label="Prix" Value="@Format.Price(_coffee.Price, _coffee.Currency)" />
+                    <DetailRow Label="@Loc.T("coffeedetail.label_price")" Value="@Format.Price(_coffee.Price, _coffee.Currency)" />
                 }
                 @if (CostPerGram is decimal cpgVal)
                 {
-                    <DetailRow Label="Coût / g" Value="@($"{cpgVal.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)} {_coffee.Currency}/g")" />
+                    <DetailRow Label="@Loc.T("coffeedetail.label_cost_per_g")" Value="@($"{cpgVal.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)} {_coffee.Currency}/g")" />
                 }
                 @if (AvgCostPerCup is decimal accVal)
                 {
-                    <DetailRow Label="Coût moyen / tasse" Value="@Format.Price(accVal, _coffee.Currency)" />
+                    <DetailRow Label="@Loc.T("coffeedetail.label_avg_cost_per_cup")" Value="@Format.Price(accVal, _coffee.Currency)" />
                 }
-                <DetailRow Label="Statut"
-                           Value="@(_coffee.FinishedAt is null ? "En cours" : $"Terminé le {Format.DateTimeShort(_coffee.FinishedAt)}")" />
+                <DetailRow Label="@Loc.T("coffeedetail.label_status")"
+                           Value="@(_coffee.FinishedAt is null ? Loc.T("coffeedetail.value_active") : Loc.T("coffeedetail.value_finished", Format.DateTimeShort(_coffee.FinishedAt)))" />
             }
         </MudPaper>
 
@@ -122,10 +124,10 @@ else
             var pct = Math.Min(100.0, deg.Days * 100.0 / Degassing.MaxDays);
             <MudPaper Class="pa-4" Elevation="0">
                 <div class="d-flex align-baseline justify-space-between mb-2">
-                    <MudText Typo="Typo.overline" Class="mud-text-secondary">Dégazage</MudText>
+                    <MudText Typo="Typo.overline" Class="mud-text-secondary">@Loc.T("coffeedetail.section_degassing")</MudText>
                     <MudText Style="font-weight:600;">
-                        @deg.Days j
-                        <span class="mud-text-secondary" style="font-weight:400; font-size:13px;"> · @deg.ShortLabel</span>
+                        @deg.Days @Loc.T("common.day_short")
+                        <span class="mud-text-secondary" style="font-weight:400; font-size:13px;"> · @Loc.T($"degas.{ZoneToKey(deg.Zone)}_short")</span>
                     </MudText>
                 </div>
                 <div class="degas-track">
@@ -137,13 +139,13 @@ else
                     <div class="degas-marker" style="@($"left: {pct.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}%;")"></div>
                 </div>
                 <div class="degas-legend">
-                    <span>0j</span>
-                    <span>7j</span>
-                    <span>21j</span>
-                    <span>35j</span>
-                    <span>42j+</span>
+                    <span>0@Loc.T("common.day_short")</span>
+                    <span>7@Loc.T("common.day_short")</span>
+                    <span>21@Loc.T("common.day_short")</span>
+                    <span>35@Loc.T("common.day_short")</span>
+                    <span>42@Loc.T("common.day_short")+</span>
                 </div>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">@deg.Label</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">@Loc.T($"degas.{ZoneToKey(deg.Zone)}_long")</MudText>
             </MudPaper>
         }
 
@@ -156,10 +158,10 @@ else
             var color = remaining <= 30m ? Color.Error : (remaining <= 60m ? Color.Warning : Color.Primary);
             <MudPaper Class="pa-4" Elevation="0">
                 <div class="d-flex justify-space-between align-baseline mb-2">
-                    <MudText Typo="Typo.overline" Class="mud-text-secondary">Stock restant</MudText>
+                    <MudText Typo="Typo.overline" Class="mud-text-secondary">@Loc.T("coffeedetail.section_stock")</MudText>
                     <MudText Style="font-weight:600;">
-                        @remaining.ToString("0.#") g
-                        <span class="mud-text-secondary" style="font-weight:400; font-size:13px;"> / @totalGrams g</span>
+                        @Loc.T("coffeedetail.stock_unit", remaining.ToString("0.#"))
+                        <span class="mud-text-secondary" style="font-weight:400; font-size:13px;"> @Loc.T("coffeedetail.stock_of_total", totalGrams)</span>
                     </MudText>
                 </div>
                 <MudProgressLinear Value="@pct" Color="@color" Style="height:8px; border-radius:4px;" />
@@ -167,28 +169,28 @@ else
                 {
                     var sign = _coffee.StockAdjustmentG > 0m ? "+" : "";
                     <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">
-                        Inclut un ajustement de @sign@_coffee.StockAdjustmentG.ToString("0.#") g.
+                        @Loc.T("coffeedetail.stock_adjustment_includes", $"{sign}{_coffee.StockAdjustmentG.ToString("0.#")}")
                     </MudText>
                 }
                 @if (remaining <= 0m)
                 {
-                    <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-2">Sac vide d'après les brews enregistrés.</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-2">@Loc.T("coffeedetail.stock_empty")</MudText>
                 }
                 else if (remaining <= 30m)
                 {
-                    <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-2">Bientôt fini — pense à racheter.</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-2">@Loc.T("coffeedetail.stock_low")</MudText>
                 }
                 <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
                            StartIcon="@Icons.Material.Filled.Tune"
                            OnClick="OpenStockAdjustAsync"
-                           Class="mt-2">Ajuster le stock</MudButton>
+                           Class="mt-2">@Loc.T("coffeedetail.stock_adjust_btn")</MudButton>
             </MudPaper>
         }
 
         @if (!string.IsNullOrEmpty(_coffee.TastingNotes))
         {
             <MudPaper Class="pa-4" Elevation="0">
-                <MudText Typo="Typo.overline" Class="mud-text-secondary">Notes du torréfacteur</MudText>
+                <MudText Typo="Typo.overline" Class="mud-text-secondary">@Loc.T("coffeedetail.section_roaster_notes")</MudText>
                 <MudText Class="mt-1" Style="white-space: pre-wrap;">@_coffee.TastingNotes</MudText>
             </MudPaper>
         }
@@ -197,16 +199,16 @@ else
         {
         <MudPaper Class="pa-4" Elevation="0">
             <div class="d-flex align-center justify-space-between mb-3">
-                <MudText Typo="Typo.h6">Brews (@_brews.Count)</MudText>
+                <MudText Typo="Typo.h6">@Loc.T("coffeedetail.section_brews", _brews.Count)</MudText>
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
                            Size="Size.Small"
-                           OnClick="@(() => Nav.NavigateTo($"brews/new?coffeeId={Id}"))">Ajouter</MudButton>
+                           OnClick="@(() => Nav.NavigateTo($"brews/new?coffeeId={Id}"))">@Loc.T("common.add")</MudButton>
             </div>
             @if (_brews.Count > 0)
             {
                 <div class="d-flex align-center mb-3" style="gap:8px;">
-                    <span class="mud-text-secondary" style="font-size:14px;">Moyenne :</span>
+                    <span class="mud-text-secondary" style="font-size:14px;">@Loc.T("coffeedetail.brews_average")</span>
                     <StarRating Value="@((int)Math.Round(_brews.Average(b => b.Rating)))" ReadOnly="true" Size="Size.Small" />
                     <span class="mud-text-secondary" style="font-size:14px;">(@_brews.Average(b => b.Rating).ToString("0.0"))</span>
                 </div>
@@ -214,7 +216,7 @@ else
             @if (_chartSeries is not null)
             {
                 <div class="mb-3">
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">Évolution du score (chronologique)</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">@Loc.T("coffeedetail.brews_chart_title")</MudText>
                     <MudChart T="double"
                               ChartType="ChartType.Line"
                               ChartSeries="@_chartSeries"
@@ -225,7 +227,7 @@ else
             }
             @if (_brews.Count == 0)
             {
-                <MudText Class="mud-text-secondary">Aucun brew encore. Lance-toi !</MudText>
+                <MudText Class="mud-text-secondary">@Loc.T("coffeedetail.brews_empty")</MudText>
             }
             else
             {
@@ -266,7 +268,7 @@ else
                                     <MudIconButton Icon="@Icons.Material.Filled.Replay" Size="Size.Small"
                                                    Color="Color.Primary"
                                                    OnClick="@(() => GoDuplicate(b.Id))"
-                                                   aria-label="Refaire ce brew" />
+                                                   aria-label="@Loc.T("coffeedetail.brew_redo_aria")" />
                                 </span>
                             </div>
                         </MudListItem>
@@ -279,7 +281,7 @@ else
                                Disabled="@(_selectedBrewIds.Count != 2)"
                                OnClick="OpenCompareAsync"
                                Class="mt-3">
-                        Comparer @_selectedBrewIds.Count/2 brews sélectionnés
+                        @Loc.T("coffeedetail.compare_btn", _selectedBrewIds.Count)
                     </MudButton>
                 }
             }
@@ -293,13 +295,13 @@ else
                     <MudButton Variant="Variant.Filled" Color="Color.Default" FullWidth="true"
                                StartIcon="@(_coffee.FinishedAt is null ? Icons.Material.Filled.Check : Icons.Material.Filled.Refresh)"
                                OnClick="ToggleFinishedAsync">
-                        @(_coffee.FinishedAt is null ? "Marquer terminé" : "Rouvrir")
+                        @(_coffee.FinishedAt is null ? Loc.T("coffeedetail.btn_finish") : Loc.T("coffeedetail.btn_reopen"))
                     </MudButton>
                 </MudItem>
                 <MudItem xs="6">
                     <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
                                StartIcon="@Icons.Material.Filled.Delete"
-                               OnClick="DeleteAsync">Supprimer</MudButton>
+                               OnClick="DeleteAsync">@Loc.T("common.delete")</MudButton>
                 </MudItem>
             }
             else
@@ -307,7 +309,7 @@ else
                 <MudItem xs="12">
                     <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
                                StartIcon="@Icons.Material.Filled.Delete"
-                               OnClick="DeleteAsync">Supprimer</MudButton>
+                               OnClick="DeleteAsync">@Loc.T("common.delete")</MudButton>
                 </MudItem>
             }
         </MudGrid>
@@ -380,6 +382,20 @@ else
         ShowLegend = false,
         InterpolationOption = InterpolationOption.NaturalSpline,
         ChartPalette = new[] { "#3b2418" }
+    };
+
+    protected override void OnInitialized() => Loc.LanguageChanged += OnLangChanged;
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
+
+    /// <summary>Convertit la zone de dégazage interne ("too-fresh"/"filter-only"/...) en clé de localisation.</summary>
+    private static string ZoneToKey(string zone) => zone switch
+    {
+        "too-fresh" => "fresh",
+        "filter-only" => "filter",
+        "optimal" => "optimal",
+        "declining" => "declining",
+        _ => "past"
     };
 
     protected override async Task OnParametersSetAsync()
@@ -467,7 +483,7 @@ else
         var parts = new[] { _coffee?.Country, _coffee?.Region, _coffee?.Farm }
             .Where(s => !string.IsNullOrEmpty(s))
             .ToArray();
-        return parts.Length == 0 ? "—" : string.Join(" · ", parts);
+        return parts.Length == 0 ? Loc.T("common.none") : string.Join(" · ", parts);
     }
 
     private async Task OpenStockAdjustAsync()
@@ -480,7 +496,7 @@ else
             ["SumBrewsG"] = sumBrews
         };
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
-        var dialogRef = await Dialogs.ShowAsync<StockAdjustmentDialog>("Ajuster le stock", parameters, options);
+        var dialogRef = await Dialogs.ShowAsync<StockAdjustmentDialog>(Loc.T("stockdialog.title"), parameters, options);
         var result = await dialogRef.Result;
         if (result is not null && !result.Canceled)
         {
@@ -497,7 +513,7 @@ else
         _coffee.UpdatedAt = DateTime.UtcNow;
         await Db.Coffees.Put(_coffee);
         Sync.RequestPush();
-        Snackbar.Add(_coffee.FinishedAt is null ? "Café rouvert" : "Café marqué terminé", Severity.Success);
+        Snackbar.Add(_coffee.FinishedAt is null ? Loc.T("coffeedetail.snack_reopened") : Loc.T("coffeedetail.snack_finished"), Severity.Success);
     }
 
     private async Task DeleteAsync()
@@ -505,10 +521,10 @@ else
         if (_coffee is null) return;
         var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
         {
-            Title = "Supprimer ?",
-            Message = $"Supprimer \"{_coffee.Name}\" ainsi que tous les brews associés ?",
-            YesText = "Supprimer",
-            CancelText = "Annuler"
+            Title = Loc.T("coffeeform.btn_delete_confirm_title"),
+            Message = Loc.T("coffeeform.btn_delete_confirm_msg", _coffee.Name),
+            YesText = Loc.T("common.delete"),
+            CancelText = Loc.T("common.cancel")
         });
         if (ok != true) return;
 
@@ -516,7 +532,7 @@ else
         foreach (var bId in related) await Db.Brews.Delete(bId);
         await Db.Coffees.Delete(Id);
         Sync.RequestPush();
-        Snackbar.Add("Café supprimé", Severity.Info);
+        Snackbar.Add(Loc.T("coffeeform.snack_deleted"), Severity.Info);
         Nav.NavigateTo("coffees");
     }
 }

@@ -6,6 +6,7 @@
 *@
 @page "/shops/new"
 @page "/shops/{Id:int}/edit"
+@implements IDisposable
 @inject CoffeeDb Db
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
@@ -13,10 +14,11 @@
 @inject IJSRuntime JS
 @inject PlaceSearchService PlaceSearch
 @inject SyncService Sync
+@inject LocalizationService Loc
 
-<PageTitle>@(IsEdit ? "Modifier le shop" : "Nouveau shop")</PageTitle>
+<PageTitle>@(IsEdit ? Loc.T("shopform.title_edit") : Loc.T("shopform.title_new"))</PageTitle>
 
-<PageHeader Title="@(IsEdit ? "Modifier le shop" : "Nouveau shop")" Back="true" BackUrl="@BackTarget" />
+<PageHeader Title="@(IsEdit ? Loc.T("shopform.title_edit") : Loc.T("shopform.title_new"))" Back="true" BackUrl="@BackTarget" />
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync">
     <DataAnnotationsValidator />
@@ -24,7 +26,7 @@
     <MudStack Spacing="4">
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Photo</MudText>
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("coffeeform.section_photo")</MudText>
             <div class="d-flex align-center" style="gap:12px;">
                 @if (!string.IsNullOrEmpty(_model.PhotoDataUrl))
                 {
@@ -40,13 +42,13 @@
                     <InputFile id="shopPhotoInput" OnChange="OnPhotoSelectedAsync" accept="image/*" capture="environment" style="display:none;" />
                     <label for="shopPhotoInput" class="upload-button">
                         <MudIcon Icon="@Icons.Material.Filled.PhotoCamera" Size="Size.Small" />
-                        <span>@(string.IsNullOrEmpty(_model.PhotoDataUrl) ? "Ajouter" : "Changer")</span>
+                        <span>@(string.IsNullOrEmpty(_model.PhotoDataUrl) ? Loc.T("coffeeform.photo_add") : Loc.T("coffeeform.photo_change"))</span>
                     </label>
                     @if (!string.IsNullOrEmpty(_model.PhotoDataUrl))
                     {
                         <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Close"
-                                   OnClick="@(() => _model.PhotoDataUrl = null)">Retirer</MudButton>
+                                   OnClick="@(() => _model.PhotoDataUrl = null)">@Loc.T("coffeeform.photo_remove")</MudButton>
                     }
                 </MudStack>
             </div>
@@ -59,16 +61,16 @@
                            StartIcon="@Icons.Material.Filled.TravelExplore"
                            FullWidth="true" Class="mb-3"
                            OnClick="OpenSearchAsync">
-                    Rechercher en ligne
+                    @Loc.T("shopform.search_online")
                 </MudButton>
             }
-            <MudTextField @bind-Value="_model.Name" Label="Nom du shop *"
+            <MudTextField @bind-Value="_model.Name" Label="@Loc.T("shopform.field_name")"
                           Variant="Variant.Outlined" Required="true"
-                          Placeholder="ex : Coutume" Class="mb-3" />
+                          Placeholder="@Loc.T("shopform.field_name_placeholder")" Class="mb-3" />
             <MudGrid Spacing="2">
-                <MudItem xs="6"><MudTextField @bind-Value="_model.City" Label="Ville" Variant="Variant.Outlined" Placeholder="Paris" /></MudItem>
-                <MudItem xs="6"><MudTextField @bind-Value="_model.Country" Label="Pays" Variant="Variant.Outlined" Placeholder="France" /></MudItem>
-                <MudItem xs="12"><MudTextField @bind-Value="_model.Address" Label="Adresse" Variant="Variant.Outlined" Placeholder="ex : 47 rue de Babylone, 75007" /></MudItem>
+                <MudItem xs="6"><MudTextField @bind-Value="_model.City" Label="@Loc.T("shopform.field_city")" Variant="Variant.Outlined" Placeholder="@Loc.T("shopform.field_city_placeholder")" /></MudItem>
+                <MudItem xs="6"><MudTextField @bind-Value="_model.Country" Label="@Loc.T("shopform.field_country")" Variant="Variant.Outlined" Placeholder="@Loc.T("shopform.field_country_placeholder")" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_model.Address" Label="@Loc.T("shopform.field_address")" Variant="Variant.Outlined" Placeholder="@Loc.T("shopform.field_address_placeholder")" /></MudItem>
             </MudGrid>
             @if (_model.Latitude is not null && _model.Longitude is not null)
             {
@@ -77,20 +79,20 @@
                     @_model.Latitude.Value.ToString("0.#####", _inv), @_model.Longitude.Value.ToString("0.#####", _inv)
                     @if (!string.IsNullOrEmpty(_model.ExternalPlaceId))
                     {
-                        <span class="ml-2">· source : @ProviderLabel(_model.ExternalPlaceId)</span>
+                        <span class="ml-2">· @Loc.T("shopform.gps_source", ProviderLabel(_model.ExternalPlaceId))</span>
                     }
                 </MudText>
             }
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudTextField @bind-Value="_model.Notes" Label="Notes" Variant="Variant.Outlined" Lines="4"
-                          Placeholder="ex : ambiance, baristas, machine, horaires…" />
+            <MudTextField @bind-Value="_model.Notes" Label="@Loc.T("shopform.field_notes")" Variant="Variant.Outlined" Lines="4"
+                          Placeholder="@Loc.T("shopform.field_notes_placeholder")" />
         </MudPaper>
 
         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
                    StartIcon="@Icons.Material.Filled.Save" Disabled="_saving">
-            @(IsEdit ? "Enregistrer" : "Créer le shop")
+            @(IsEdit ? Loc.T("common.save") : Loc.T("shopform.btn_create"))
         </MudButton>
 
     </MudStack>
@@ -111,6 +113,10 @@
 
     private string BackTarget => IsEdit ? $"shops/{Id}" : "shops";
 
+    protected override void OnInitialized() => Loc.LanguageChanged += OnLangChanged;
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
+
     protected override async Task OnParametersSetAsync()
     {
         if (IsEdit)
@@ -123,7 +129,7 @@
     private async Task OpenSearchAsync()
     {
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
-        var dialogRef = await Dialogs.ShowAsync<PlaceSearchDialog>("Rechercher un coffee shop", options);
+        var dialogRef = await Dialogs.ShowAsync<PlaceSearchDialog>(Loc.T("placesearch.title"), options);
         var result = await dialogRef.Result;
         if (result is null || result.Canceled) return;
         if (result.Data is not PlaceResult place) return;
@@ -135,15 +141,15 @@
         _model.Latitude = place.Latitude;
         _model.Longitude = place.Longitude;
         _model.ExternalPlaceId = place.ExternalId;
-        Snackbar.Add($"« {place.Name} » importé depuis {ProviderLabel(place.ExternalId)}", Severity.Success);
+        Snackbar.Add(Loc.T("shopform.snack_imported", place.Name, ProviderLabel(place.ExternalId)), Severity.Success);
         StateHasChanged();
     }
 
-    private static string ProviderLabel(string? externalId)
+    private string ProviderLabel(string? externalId)
     {
-        if (string.IsNullOrEmpty(externalId)) return "—";
-        if (externalId.StartsWith("google:", StringComparison.Ordinal)) return "Google";
-        if (externalId.StartsWith("osm:", StringComparison.Ordinal)) return "OpenStreetMap";
+        if (string.IsNullOrEmpty(externalId)) return Loc.T("common.none");
+        if (externalId.StartsWith("google:", StringComparison.Ordinal)) return Loc.T("placesearch.provider_google");
+        if (externalId.StartsWith("osm:", StringComparison.Ordinal)) return Loc.T("placesearch.provider_osm");
         return externalId;
     }
 
@@ -164,7 +170,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur image : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("coffeeform.photo_error", ex.Message), Severity.Error);
         }
     }
 
@@ -179,7 +185,7 @@
                 _model.Id = Id!.Value;
                 await Db.Shops.Put(_model);
                 Sync.RequestPush();
-                Snackbar.Add("Shop enregistré", Severity.Success);
+                Snackbar.Add(Loc.T("shopform.snack_saved"), Severity.Success);
                 Nav.NavigateTo($"shops/{Id}");
             }
             else
@@ -188,13 +194,13 @@
                 _model.Id = 0;
                 var newId = await Db.Shops.Add(_model);
                 Sync.RequestPush();
-                Snackbar.Add("Shop créé — ajoute ta première visite !", Severity.Success);
+                Snackbar.Add(Loc.T("shopform.snack_created"), Severity.Success);
                 Nav.NavigateTo($"shops/{newId}");
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("common.error_prefix", ex.Message), Severity.Error);
         }
         finally
         {

@@ -4,28 +4,28 @@ namespace CoffeeTracker.Lib;
 
 /// <summary>
 /// Helpers d'affichage pour les types primitifs (dates, prix, ratios).
-/// Centralisé ici pour garantir une présentation cohérente dans toute l'UI
-/// (locale française, fallback "—" pour les valeurs nulles).
+/// Suit la culture courante (settée par <see cref="LocalizationService.InitializeAsync"/>) :
+/// fr-FR, en-GB ou it-IT selon la langue active.
 /// </summary>
 public static class Format
 {
-    private static readonly CultureInfo Fr = new("fr-FR");
+    private static CultureInfo Cul => CultureInfo.CurrentCulture;
 
-    /// <summary>Format date courte localisée (ex : « 06 mai 2026 »). null → « — ».</summary>
+    /// <summary>Format date courte localisée (ex : « 06 mai 2026 » en FR, « 06 May 2026 » en EN). null → « — ».</summary>
     public static string Date(DateOnly? d) =>
-        d is null ? "—" : d.Value.ToString("dd MMM yyyy", Fr);
+        d is null ? "—" : d.Value.ToString("dd MMM yyyy", Cul);
 
-    /// <summary>Format date+heure courte (ex : « 06 mai, 14:32 »), converti en heure locale.</summary>
+    /// <summary>Format date+heure courte, converti en heure locale.</summary>
     public static string DateTimeShort(DateTime? d) =>
-        d is null ? "—" : d.Value.ToLocalTime().ToString("dd MMM, HH:mm", Fr);
+        d is null ? "—" : d.Value.ToLocalTime().ToString("dd MMM, HH:mm", Cul);
 
     /// <summary>Nombre de jours écoulés depuis <paramref name="d"/> jusqu'à aujourd'hui (peut être négatif).</summary>
     public static int? DaysSince(DateOnly? d) =>
         d is null ? null : DateOnly.FromDateTime(DateTime.Today).DayNumber - d.Value.DayNumber;
 
     /// <summary>
-    /// Prix formaté avec devise (€ pour EUR, sinon le code ISO tel quel).
-    /// Tolère les currencies inconnues sans planter (fallback sur concat brute).
+    /// Prix formaté avec devise (utilise la culture courante pour la mise en forme du nombre,
+    /// remplace le symbole monétaire par celui demandé). Tolère les currencies inconnues.
     /// </summary>
     public static string Price(decimal? p, string? currency)
     {
@@ -33,8 +33,11 @@ public static class Format
         try
         {
             var c = string.IsNullOrWhiteSpace(currency) ? "EUR" : currency;
-            var nfi = (NumberFormatInfo)Fr.NumberFormat.Clone();
-            return string.Format(Fr, "{0:C}", p.Value).Replace("€", c == "EUR" ? "€" : c);
+            var formatted = string.Format(Cul, "{0:C}", p.Value);
+            // Remplace le symbole de la culture (€/$/£) par celui demandé si différent.
+            var nativeSymbol = Cul.NumberFormat.CurrencySymbol;
+            var targetSymbol = c == "EUR" ? "€" : (c == "USD" ? "$" : (c == "GBP" ? "£" : c));
+            return formatted.Replace(nativeSymbol, targetSymbol);
         }
         catch
         {

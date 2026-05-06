@@ -1,15 +1,21 @@
+@*
+    CRUD machine. Suppression « soft » : les brews qui référencent la machine gardent l'ID
+    en orphelin (ils n'apparaîtront plus avec le nom mais ne seront pas supprimés).
+*@
 @page "/machines/new"
 @page "/machines/{Id:int}/edit"
+@implements IDisposable
 @inject CoffeeDb Db
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 @inject IJSRuntime JS
 @inject SyncService Sync
+@inject LocalizationService Loc
 
-<PageTitle>@(IsEdit ? "Modifier la machine" : "Nouvelle machine")</PageTitle>
+<PageTitle>@(IsEdit ? Loc.T("machineform.title_edit") : Loc.T("machineform.title_new"))</PageTitle>
 
-<PageHeader Title="@(IsEdit ? "Modifier la machine" : "Nouvelle machine")" Back="true" BackUrl="machines" />
+<PageHeader Title="@(IsEdit ? Loc.T("machineform.title_edit") : Loc.T("machineform.title_new"))" Back="true" BackUrl="machines" />
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync">
     <DataAnnotationsValidator />
@@ -17,7 +23,7 @@
     <MudStack Spacing="4">
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Photo</MudText>
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("coffeeform.section_photo")</MudText>
             <div class="d-flex align-center" style="gap:12px;">
                 @if (!string.IsNullOrEmpty(_model.PhotoDataUrl))
                 {
@@ -33,60 +39,60 @@
                     <InputFile id="machinePhotoInput" OnChange="OnPhotoSelectedAsync" accept="image/*" capture="environment" style="display:none;" />
                     <label for="machinePhotoInput" class="upload-button">
                         <MudIcon Icon="@Icons.Material.Filled.PhotoCamera" Size="Size.Small" />
-                        <span>@(string.IsNullOrEmpty(_model.PhotoDataUrl) ? "Ajouter" : "Changer")</span>
+                        <span>@(string.IsNullOrEmpty(_model.PhotoDataUrl) ? Loc.T("coffeeform.photo_add") : Loc.T("coffeeform.photo_change"))</span>
                     </label>
                     @if (!string.IsNullOrEmpty(_model.PhotoDataUrl))
                     {
                         <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.Close"
-                                   OnClick="@(() => _model.PhotoDataUrl = null)">Retirer</MudButton>
+                                   OnClick="@(() => _model.PhotoDataUrl = null)">@Loc.T("coffeeform.photo_remove")</MudButton>
                     }
                 </MudStack>
             </div>
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudTextField @bind-Value="_model.Name" Label="Nom *" Variant="Variant.Outlined" Required="true" Placeholder="ex : Profitec Pro 600" Class="mb-3" />
-            <MudSelect T="MachineType" @bind-Value="_model.Type" Label="Type" Variant="Variant.Outlined" Class="mb-3">
+            <MudTextField @bind-Value="_model.Name" Label="@Loc.T("machineform.field_name")" Variant="Variant.Outlined" Required="true" Placeholder="@Loc.T("machineform.field_name_placeholder")" Class="mb-3" />
+            <MudSelect T="MachineType" @bind-Value="_model.Type" Label="@Loc.T("machineform.field_type")" Variant="Variant.Outlined" Class="mb-3">
                 @foreach (var t in MachineTypeOrder.DisplayOrder)
                 {
                     <MudSelectItem T="MachineType" Value="@t">@t.GetLabel()</MudSelectItem>
                 }
             </MudSelect>
             <MudGrid Spacing="2">
-                <MudItem xs="6"><MudTextField @bind-Value="_model.Brand" Label="Marque" Variant="Variant.Outlined" /></MudItem>
-                <MudItem xs="6"><MudTextField @bind-Value="_model.Model" Label="Modèle" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="6"><MudTextField @bind-Value="_model.Brand" Label="@Loc.T("machineform.field_brand")" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="6"><MudTextField @bind-Value="_model.Model" Label="@Loc.T("machineform.field_model")" Variant="Variant.Outlined" /></MudItem>
             </MudGrid>
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">Achat (optionnel)</MudText>
+            <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("machineform.section_purchase")</MudText>
             <MudGrid Spacing="2">
                 <MudItem xs="12">
-                    <MudDatePicker @bind-Date="_purchaseDate" Label="Date d'achat" Variant="Variant.Outlined" Editable="true" Clearable="true" />
+                    <MudDatePicker @bind-Date="_purchaseDate" Label="@Loc.T("machineform.field_purchase_date")" Variant="Variant.Outlined" Editable="true" Clearable="true" />
                 </MudItem>
                 <MudItem xs="8">
-                    <MudNumericField T="decimal?" @bind-Value="_model.Price" Label="Prix" Variant="Variant.Outlined" Format="0.##" Culture="@_inv" Min="0m" />
+                    <MudNumericField T="decimal?" @bind-Value="_model.Price" Label="@Loc.T("coffeeform.field_price")" Variant="Variant.Outlined" Format="0.##" Culture="@_inv" Min="0m" />
                 </MudItem>
                 <MudItem xs="4">
-                    <MudTextField @bind-Value="_model.Currency" Label="Devise" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_model.Currency" Label="@Loc.T("coffeeform.field_currency")" Variant="Variant.Outlined" />
                 </MudItem>
             </MudGrid>
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudTextField @bind-Value="_model.Notes" Label="Notes" Variant="Variant.Outlined" Lines="4" Placeholder="ex : réglages, dernière révision…" />
+            <MudTextField @bind-Value="_model.Notes" Label="@Loc.T("coffeeform.field_tasting_notes")" Variant="Variant.Outlined" Lines="4" Placeholder="@Loc.T("machineform.field_notes_placeholder")" />
         </MudPaper>
 
         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
                    StartIcon="@Icons.Material.Filled.Save" Disabled="_saving">
-            @(IsEdit ? "Enregistrer" : "Créer la machine")
+            @(IsEdit ? Loc.T("common.save") : Loc.T("machineform.btn_create"))
         </MudButton>
 
         @if (IsEdit)
         {
             <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteAsync">Supprimer</MudButton>
+                       StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteAsync">@Loc.T("common.delete")</MudButton>
         }
 
     </MudStack>
@@ -105,6 +111,10 @@
     private DateTime? _purchaseDate;
     private bool _saving;
     private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    protected override void OnInitialized() => Loc.LanguageChanged += OnLangChanged;
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -136,7 +146,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur image : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("coffeeform.photo_error", ex.Message), Severity.Error);
         }
     }
 
@@ -152,21 +162,21 @@
             {
                 _model.Id = Id!.Value;
                 await Db.Machines.Put(_model);
-                Snackbar.Add("Machine enregistrée", Severity.Success);
+                Snackbar.Add(Loc.T("machineform.snack_saved"), Severity.Success);
             }
             else
             {
                 _model.CreatedAt = DateTime.UtcNow;
                 _model.Id = 0;
                 await Db.Machines.Add(_model);
-                Snackbar.Add("Machine créée", Severity.Success);
+                Snackbar.Add(Loc.T("machineform.snack_created"), Severity.Success);
             }
             Sync.RequestPush();
             Nav.NavigateTo("machines");
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("common.error_prefix", ex.Message), Severity.Error);
         }
         finally
         {
@@ -178,15 +188,15 @@
     {
         var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
         {
-            Title = "Supprimer ?",
-            Message = "Supprimer cette machine ? Les brews qui la référencent garderont la référence (orpheline).",
-            YesText = "Supprimer",
-            CancelText = "Annuler"
+            Title = Loc.T("coffeeform.btn_delete_confirm_title"),
+            Message = Loc.T("machineform.btn_delete_confirm_msg"),
+            YesText = Loc.T("common.delete"),
+            CancelText = Loc.T("common.cancel")
         });
         if (ok != true || Id is null) return;
         await Db.Machines.Delete(Id.Value);
         Sync.RequestPush();
-        Snackbar.Add("Machine supprimée", Severity.Info);
+        Snackbar.Add(Loc.T("machineform.snack_deleted"), Severity.Info);
         Nav.NavigateTo("machines");
     }
 }

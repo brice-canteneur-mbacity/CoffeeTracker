@@ -1,50 +1,50 @@
 @inject CoffeeDb Db
 @inject ISnackbar Snackbar
 @inject SyncService Sync
+@inject LocalizationService Loc
 
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="3">
             <div>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">
-                    Stock calculé actuellement
+                    @Loc.T("stockdialog.current_label")
                 </MudText>
                 <MudText Typo="Typo.h5" Style="font-weight:600;">
                     @CurrentComputed.ToString("0.#", _inv) g
                     <span class="mud-text-secondary" style="font-weight:400; font-size:13px;">
-                        sur @InitialWeight g initiaux
+                        @Loc.T("stockdialog.current_unit_total", InitialWeight)
                     </span>
                 </MudText>
                 @if (CurrentAdjustment != 0m)
                 {
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                        Inclut un ajustement précédent de
-                        @(CurrentAdjustment > 0m ? "+" : "")@CurrentAdjustment.ToString("0.#", _inv) g
+                        @Loc.T("stockdialog.previous_adjust", $"{(CurrentAdjustment > 0m ? "+" : "")}{CurrentAdjustment.ToString("0.#", _inv)}")
                     </MudText>
                 }
             </div>
 
             <MudNumericField T="decimal?" @bind-Value="_realStockG"
-                             Label="Stock réel (g)"
+                             Label="@Loc.T("stockdialog.field_real")"
                              Variant="Variant.Outlined"
                              Format="0.#" Culture="@_inv" Min="0m"
-                             HelperText="Pèse le sac et saisis ce qu'il reste vraiment." />
+                             HelperText="@Loc.T("stockdialog.field_real_helper")" />
 
             @if (DeltaPreview is decimal d)
             {
                 var sign = d >= 0m ? "+" : "";
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                    Ajustement appliqué : @sign@d.ToString("0.#", _inv) g par rapport au calcul actuel.
+                    @Loc.T("stockdialog.delta_preview", $"{sign}{d.ToString("0.#", _inv)}")
                 </MudText>
             }
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel">Annuler</MudButton>
+        <MudButton OnClick="Cancel">@Loc.T("common.cancel")</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled"
                    OnClick="SaveAsync"
                    Disabled="@(_realStockG is null || _saving)">
-            Enregistrer
+            @Loc.T("common.save")
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -83,12 +83,12 @@
             Coffee.UpdatedAt = DateTime.UtcNow;
             await Db.Coffees.Put(Coffee);
             Sync.RequestPush();
-            Snackbar.Add("Stock ajusté", Severity.Success);
+            Snackbar.Add(Loc.T("stockdialog.snack_saved"), Severity.Success);
             MudDialog.Close(DialogResult.Ok(real));
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("common.error_prefix", ex.Message), Severity.Error);
         }
         finally
         {

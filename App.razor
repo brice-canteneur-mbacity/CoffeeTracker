@@ -1,10 +1,16 @@
 @*
     Composant racine : pose les providers globaux (theme/popover/dialog/snackbar),
-    puis monte le router. Initialise le ThemeService et le SyncService au démarrage
-    (le SyncService déclenche un pull GitHub Gist en arrière-plan si configuré).
+    puis monte le router. Initialise au démarrage :
+    - LocalizationService (charge le dictionnaire de la langue active — DOIT précéder le rendu)
+    - ThemeService (light/dark + écoute media query)
+    - SyncService (pull GitHub Gist en arrière-plan si configuré)
+
+    IMPORTANT : le <Router> est gaté sur _ready pour éviter un flash de clés brutes
+    (« nav.coffees ») au premier rendu, le temps que le JSON i18n soit fetché.
 *@
 @using MudBlazor
 @implements IDisposable
+@inject LocalizationService Loc
 @inject ThemeService Theme
 @inject SyncService Sync
 
@@ -13,29 +19,66 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-    <NotFound>
-        <PageTitle>Introuvable</PageTitle>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <MudText Class="pa-4">Aucune page à cette adresse.</MudText>
-        </LayoutView>
-    </NotFound>
-</Router>
+@if (_ready)
+{
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>404</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <MudText Class="pa-4">@Loc.T("common.notfound")</MudText>
+            </LayoutView>
+        </NotFound>
+    </Router>
+}
+else
+{
+    <div class="boot-screen">
+        <div class="boot-logo">☕</div>
+        <div class="boot-label">Coffee Tracker…</div>
+    </div>
+}
+
+<style>
+    .boot-screen {
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 16px;
+        background: var(--coffee-bg, #fdfaf6);
+        color: var(--coffee-text-dim, #8a7560);
+    }
+    .boot-logo { font-size: 48px; }
+    .boot-label { font-size: 14px; letter-spacing: 0.04em; }
+</style>
 
 @code {
+    private bool _ready;
+
     protected override async Task OnInitializedAsync()
     {
+        // Localisation EN PREMIER : on bloque le rendu du Router tant qu'elle n'est pas chargée
+        // (cf. _ready ci-dessous). Évite de voir les clés "nav.coffees" pendant 50 ms au boot.
+        try { await Loc.InitializeAsync(); }
+        catch { /* échec réseau / JSON corrompu : on continue, GetLabel fallback sur Description */ }
+        Loc.LanguageChanged += OnLanguageChanged;
+
         Theme.Changed += OnThemeChanged;
         await Theme.InitializeAsync();
         // Pull GitHub Gist en arrière-plan (fire-and-forget) si configuré.
         await Sync.InitializeAsync();
+
+        _ready = true;
     }
 
     private void OnThemeChanged() => InvokeAsync(StateHasChanged);
+    private void OnLanguageChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Theme.Changed -= OnThemeChanged;
+    public void Dispose()
+    {
+        Theme.Changed -= OnThemeChanged;
+        Loc.LanguageChanged -= OnLanguageChanged;
+    }
 }

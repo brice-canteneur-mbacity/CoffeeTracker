@@ -14,10 +14,11 @@ public record CoffeeAlert(AlertSeverity Severity, string Title, string Message, 
 /// Évalue les règles de rappels (stock bas, hors fenêtre de dégazage…) au démarrage de l'app.
 /// Combine snackbars in-app + notifications système si la permission est accordée et activée.
 /// </summary>
-public class AlertsService(CoffeeDb db, IJSRuntime js)
+public class AlertsService(CoffeeDb db, IJSRuntime js, LocalizationService loc)
 {
     private readonly CoffeeDb _db = db;
     private readonly IJSRuntime _js = js;
+    private readonly LocalizationService _loc = loc;
 
     /// <summary>
     /// Parcourt les cafés possédés non terminés et applique deux règles :
@@ -49,16 +50,17 @@ public class AlertsService(CoffeeDb db, IJSRuntime js)
                 {
                     alerts.Add(new CoffeeAlert(
                         AlertSeverity.Error,
-                        "Sac vide",
-                        $"« {c.Name} » est à 0 g — pense à le marquer terminé.",
+                        _loc.T("alerts.empty_bag_title"),
+                        _loc.T("alerts.empty_bag_msg", c.Name),
                         c.Id));
                 }
                 else if (remaining <= 30m)
                 {
                     alerts.Add(new CoffeeAlert(
                         AlertSeverity.Warning,
-                        "Stock bas",
-                        $"« {c.Name} » : {remaining.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)} g restants.",
+                        _loc.T("alerts.low_stock_title"),
+                        _loc.T("alerts.low_stock_msg", c.Name,
+                            remaining.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)),
                         c.Id));
                 }
             }
@@ -71,8 +73,8 @@ public class AlertsService(CoffeeDb db, IJSRuntime js)
                 {
                     alerts.Add(new CoffeeAlert(
                         AlertSeverity.Warning,
-                        "Au-delà du pic",
-                        $"« {c.Name} » : {deg.Days} j depuis torréfaction.",
+                        _loc.T("alerts.past_peak_title"),
+                        _loc.T("alerts.past_peak_msg", c.Name, deg.Days),
                         c.Id));
                 }
             }

@@ -29,5 +29,6 @@ builder.Services.AddScoped<ThemeService>();          // Light/dark + media query
 builder.Services.AddScoped<SyncService>();           // GitHub Gist push/pull + debounced auto-push.
 builder.Services.AddScoped<AlertsService>();         // Évaluation rappels (stock bas, dégazage).
 builder.Services.AddScoped<MigrationService>();      // Migrations data idempotentes au démarrage.
+builder.Services.AddScoped<LocalizationService>();   // i18n FR/EN/IT (chargement JSON dictionaries).
 
 await builder.Build().RunAsync();

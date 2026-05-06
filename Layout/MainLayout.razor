@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject AlertsService Alerts
 @inject MigrationService Migrations
+@inject LocalizationService Loc
 @inject ISnackbar Snackbar
 
 <MudLayout>
@@ -30,7 +31,7 @@
             if (report.HasChanges)
             {
                 Snackbar.Add(
-                    $"Migration : {report.ShopsCreated} shop(s) créé(s) depuis tes anciennes visites.",
+                    Loc.T("alerts.migration_done", report.ShopsCreated),
                     Severity.Info);
             }
         }
@@ -38,7 +39,7 @@
         {
             // Échec migration : affichage explicite pour que l'utilisateur puisse réagir
             // (Réglages → « Reconstruire les shops » force un nouveau passage).
-            Snackbar.Add($"Migration shops échouée : {ex.Message}", Severity.Error,
+            Snackbar.Add(Loc.T("alerts.migration_failed", ex.Message), Severity.Error,
                 opt => opt.RequireInteraction = true);
         }
 

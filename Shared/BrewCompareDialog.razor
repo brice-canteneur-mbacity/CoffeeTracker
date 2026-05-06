@@ -3,6 +3,8 @@
     surlignage des lignes où les 2 valeurs diffèrent (compare-diff). Lit machine/grinder names
     via la map fournie en paramètre Machines (évite des fetches DB dans le dialog).
 *@
+@inject LocalizationService Loc
+
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="0" Class="brew-compare">
@@ -22,7 +24,7 @@
         </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Close">Fermer</MudButton>
+        <MudButton OnClick="Close">@Loc.T("common.close")</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -71,17 +73,17 @@
     private List<Row> BuildRows()
     {
         var list = new List<Row>();
-        Add(list, "Méthode", BrewA.Method.GetLabel(), BrewB.Method.GetLabel());
-        Add(list, "Dose", FmtDose(BrewA.DoseG), FmtDose(BrewB.DoseG));
-        Add(list, "Yield", FmtDose(BrewA.YieldG), FmtDose(BrewB.YieldG));
-        Add(list, "Ratio", BrewA.Ratio ?? "—", BrewB.Ratio ?? "—");
-        Add(list, "Mouture", BrewA.GrindSize ?? "—", BrewB.GrindSize ?? "—");
-        Add(list, "Lait", BrewA.Milk?.GetLabel() ?? "—", BrewB.Milk?.GetLabel() ?? "—");
-        Add(list, "Score", $"{BrewA.Rating}/5", $"{BrewB.Rating}/5");
-        Add(list, "Favori", BrewA.IsFavorite ? "❤" : "—", BrewB.IsFavorite ? "❤" : "—");
-        Add(list, "Machine", MachineName(BrewA.BrewerMachineId), MachineName(BrewB.BrewerMachineId));
-        Add(list, "Moulin", MachineName(BrewA.GrinderId), MachineName(BrewB.GrinderId));
-        Add(list, "Notes", string.IsNullOrEmpty(BrewA.Notes) ? "—" : BrewA.Notes, string.IsNullOrEmpty(BrewB.Notes) ? "—" : BrewB.Notes);
+        Add(list, Loc.T("brewcompare.row_method"), BrewA.Method.GetLabel(), BrewB.Method.GetLabel());
+        Add(list, Loc.T("brewcompare.row_dose"), FmtDose(BrewA.DoseG), FmtDose(BrewB.DoseG));
+        Add(list, Loc.T("brewcompare.row_yield"), FmtDose(BrewA.YieldG), FmtDose(BrewB.YieldG));
+        Add(list, Loc.T("brewcompare.row_ratio"), BrewA.Ratio ?? "—", BrewB.Ratio ?? "—");
+        Add(list, Loc.T("brewcompare.row_grind"), BrewA.GrindSize ?? "—", BrewB.GrindSize ?? "—");
+        Add(list, Loc.T("brewcompare.row_milk"), BrewA.Milk?.GetLabel() ?? "—", BrewB.Milk?.GetLabel() ?? "—");
+        Add(list, Loc.T("brewcompare.row_score"), $"{BrewA.Rating}/5", $"{BrewB.Rating}/5");
+        Add(list, Loc.T("brewcompare.row_favorite"), BrewA.IsFavorite ? "❤" : "—", BrewB.IsFavorite ? "❤" : "—");
+        Add(list, Loc.T("brewcompare.row_machine"), MachineName(BrewA.BrewerMachineId), MachineName(BrewB.BrewerMachineId));
+        Add(list, Loc.T("brewcompare.row_grinder"), MachineName(BrewA.GrinderId), MachineName(BrewB.GrinderId));
+        Add(list, Loc.T("brewcompare.row_notes"), string.IsNullOrEmpty(BrewA.Notes) ? "—" : BrewA.Notes, string.IsNullOrEmpty(BrewB.Notes) ? "—" : BrewB.Notes);
         return list;
     }
 

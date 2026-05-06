@@ -10,10 +10,12 @@
 @page "/coffees"
 @inject CoffeeDb Db
 @inject NavigationManager Nav
+@inject LocalizationService Loc
+@implements IDisposable
 
-<PageTitle>Cafés</PageTitle>
+<PageTitle>@Loc.T("coffees.title")</PageTitle>
 
-<PageHeader Title="Cafés" Subtitle="@_subtitle">
+<PageHeader Title="@Loc.T("coffees.title")" Subtitle="@Subtitle">
     <Action>
         <MudIconButton Icon="@Icons.Material.Filled.Add"
                        Color="Color.Primary"
@@ -23,7 +25,7 @@
     </Action>
 </PageHeader>
 
-<MudTextField @bind-Value="_search" Placeholder="Rechercher (torréfacteur, origine, variété…)"
+<MudTextField @bind-Value="_search" Placeholder="@Loc.T("coffees.search_placeholder")"
               Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2"
               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
               Clearable="true" Immediate="true" DebounceInterval="150" />
@@ -31,9 +33,9 @@
 <MudTabs Elevation="0" Rounded="true" Color="Color.Primary"
          ActivePanelIndex="@_tabIndex" ActivePanelIndexChanged="@(i => _tabIndex = i)"
          Class="mb-3">
-    <MudTabPanel Text="@($"En cours ({Filter(_active).Count})")" />
-    <MudTabPanel Text="@($"Terminés ({Filter(_finished).Count})")" />
-    <MudTabPanel Text="@($"Dégustés ({Filter(_tasted).Count})")" />
+    <MudTabPanel Text="@($"{Loc.T("coffees.tab_active")} ({Filter(_active).Count})")" />
+    <MudTabPanel Text="@($"{Loc.T("coffees.tab_finished")} ({Filter(_finished).Count})")" />
+    <MudTabPanel Text="@($"{Loc.T("coffees.tab_tasted")} ({Filter(_tasted).Count})")" />
 </MudTabs>
 
 @if (_loading)
@@ -51,28 +53,24 @@ else
             <MudIcon Icon="@Icons.Material.Filled.Coffee" Size="Size.Large" Class="mb-3" Style="color: var(--coffee-accent-soft)" />
             @if (hasSearch)
             {
-                <MudText Typo="Typo.h6">Aucun résultat</MudText>
-                <MudText Class="mud-text-secondary">pour « @_search »</MudText>
+                <MudText Typo="Typo.h6">@Loc.T("shops.empty_search_title")</MudText>
+                <MudText Class="mud-text-secondary">@Loc.T("shops.empty_search_for", _search)</MudText>
             }
             else
             {
-                var emptyTitle = _tabIndex switch
+                var emptyTitleKey = _tabIndex switch
                 {
-                    0 => "Aucun café en cours",
-                    1 => "Aucun café terminé",
-                    _ => "Aucun café dégusté"
+                    0 => "coffees.empty_active",
+                    1 => "coffees.empty_finished",
+                    _ => "coffees.empty_tasted"
                 };
-                <MudText Typo="Typo.h6">@emptyTitle</MudText>
+                <MudText Typo="Typo.h6">@Loc.T(emptyTitleKey)</MudText>
                 @if (_tabIndex == 0)
                 {
-                    <MudText Class="mb-4 mud-text-secondary">Ajoute ton premier sac.</MudText>
+                    <MudText Class="mb-4 mud-text-secondary">@Loc.T("coffees.empty_active_hint")</MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Add"
-                               OnClick="@(() => Nav.NavigateTo("coffees/new"))">Ajouter un café</MudButton>
-                }
-                else if (_tabIndex == 2)
-                {
-                    <MudText Class="mb-4 mud-text-secondary">Ils apparaissent ici quand tu en associes à une visite shop.</MudText>
+                               OnClick="@(() => Nav.NavigateTo("coffees/new"))">@Loc.T("coffees.add_first")</MudButton>
                 }
             }
         </MudPaper>
@@ -106,22 +104,22 @@ else
                                 <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Filled">@c.Process.GetLabel()</MudChip>
                                 @if (c.IsDecaf)
                                 {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Filled">Décaf</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Filled">@Loc.T("coffees.label_decaf")</MudChip>
                                 }
                                 @if (c.IsBlend)
                                 {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Tertiary" Variant="Variant.Filled">Blend</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Tertiary" Variant="Variant.Filled">@Loc.T("coffees.label_blend")</MudChip>
                                 }
                                 @if (!c.IsOwned)
                                 {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Dégusté</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@Loc.T("coffeedetail.value_tasted")</MudChip>
                                 }
                                 @{
                                     var days = Format.DaysSince(c.RoastDate);
                                 }
                                 @if (days is not null)
                                 {
-                                    <span><MudIcon Icon="@Icons.Material.Filled.Today" Size="Size.Small" />@(days == 0 ? "Torréfié aujourd'hui" : $"Torréfié il y a {days}j")</span>
+                                    <span><MudIcon Icon="@Icons.Material.Filled.Today" Size="Size.Small" />@(days == 0 ? Loc.T("coffees.roasted_today") : Loc.T("coffees.roasted_days_ago", days))</span>
                                 }
                             </div>
                             @{ var stock = _tabIndex == 0 ? Stock(c) : null; }
@@ -182,9 +180,21 @@ else
     private List<Coffee> _active = new();
     private List<Coffee> _finished = new();
     private List<Coffee> _tasted = new();
-    private string _subtitle = string.Empty;
     private Dictionary<int, decimal> _usedByCoffee = new();
     private string _search = string.Empty;
+
+    /// <summary>Subtitle calculé à chaque rendu pour rester réactif au changement de langue.</summary>
+    private string Subtitle
+    {
+        get
+        {
+            var ownedCount = _active.Count + _finished.Count;
+            var s = Loc.T("coffees.subtitle_count", ownedCount, ownedCount > 1 ? "s" : "");
+            if (_tasted.Count > 0)
+                s += " · " + Loc.T("coffees.subtitle_tasted", _tasted.Count, _tasted.Count > 1 ? "s" : "");
+            return s;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -192,17 +202,17 @@ else
         _active = all.Where(c => c.IsOwned && c.FinishedAt is null).ToList();
         _finished = all.Where(c => c.IsOwned && c.FinishedAt is not null).ToList();
         _tasted = all.Where(c => !c.IsOwned).ToList();
-        var ownedCount = _active.Count + _finished.Count;
-        _subtitle = $"{ownedCount} sac{(ownedCount > 1 ? "s" : "")}"
-                  + (_tasted.Count > 0 ? $" · {_tasted.Count} dégusté{(_tasted.Count > 1 ? "s" : "")}" : "");
-
         var brews = await Db.Brews.ToCollection().ToList();
         _usedByCoffee = brews
             .GroupBy(b => b.CoffeeId)
             .ToDictionary(g => g.Key, g => g.Sum(b => b.DoseG ?? 0m));
 
+        Loc.LanguageChanged += OnLangChanged;
         _loading = false;
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
 
     private List<Coffee> Filter(List<Coffee> list)
     {
@@ -226,8 +236,10 @@ else
     {
         if (c.WeightGrams is not int total || total <= 0) return null;
         var used = _usedByCoffee.GetValueOrDefault(c.Id, 0m);
-        var remaining = total - used;
-        var pct = (double)Math.Max(0m, remaining) / total * 100;
+        // Inclut l'ajustement manuel : Stock = Weight + adjustment - used.
+        var adjusted = total + c.StockAdjustmentG;
+        var remaining = adjusted - used;
+        var pct = adjusted > 0m ? (double)Math.Max(0m, remaining) / (double)adjusted * 100 : 0;
         var cls = remaining <= 30m ? "stock-low" : (remaining <= 60m ? "stock-mid" : "stock-ok");
         return (remaining, pct, cls);
     }

@@ -8,16 +8,18 @@
     - Répartition par méthode (barres horizontales)
 *@
 @page "/stats"
+@implements IDisposable
 @inject CoffeeDb Db
 @inject NavigationManager Nav
+@inject LocalizationService Loc
 
-<PageTitle>Stats</PageTitle>
+<PageTitle>@Loc.T("stats.title")</PageTitle>
 
-<PageHeader Title="Stats">
+<PageHeader Title="@Loc.T("stats.title")">
     <Action>
         <MudIconButton Icon="@Icons.Material.Filled.Settings" Size="Size.Medium"
                        OnClick="@(() => Nav.NavigateTo("settings"))"
-                       aria-label="Réglages" />
+                       aria-label="@Loc.T("settings.title")" />
     </Action>
 </PageHeader>
 
@@ -29,28 +31,28 @@ else
 {
     <MudStack Spacing="3">
         <MudGrid Spacing="2">
-            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.Coffee" Label="Cafés" Value="@_coffees.Count" /></MudItem>
-            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.LocalCafe" Label="Brews" Value="@_brews.Count" /></MudItem>
-            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.Storefront" Label="Shops" Value="@_shopsCount" /></MudItem>
-            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.LocationOn" Label="Visites" Value="@_visits.Count" /></MudItem>
+            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.Coffee" Label="@Loc.T("stats.counter_coffees")" Value="@_coffees.Count" /></MudItem>
+            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.LocalCafe" Label="@Loc.T("stats.counter_brews")" Value="@_brews.Count" /></MudItem>
+            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.Storefront" Label="@Loc.T("stats.counter_shops")" Value="@_shopsCount" /></MudItem>
+            <MudItem xs="3"><Counter Icon="@Icons.Material.Filled.LocationOn" Label="@Loc.T("stats.counter_visits")" Value="@_visits.Count" /></MudItem>
         </MudGrid>
 
         <MudPaper Class="pa-4" Elevation="0">
             <MudText Typo="Typo.overline" Class="mud-text-secondary mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> Activité
+                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> @Loc.T("stats.section_activity")
             </MudText>
             <MudGrid Spacing="2">
                 <MudItem xs="6">
                     <MudText Typo="Typo.h4">@_brewsLast7</MudText>
-                    <MudText Class="mud-text-secondary">brews · 7j</MudText>
+                    <MudText Class="mud-text-secondary">@Loc.T("stats.activity_7d")</MudText>
                 </MudItem>
                 <MudItem xs="6">
                     <MudText Typo="Typo.h4">@_brewsLast30</MudText>
-                    <MudText Class="mud-text-secondary">brews · 30j</MudText>
+                    <MudText Class="mud-text-secondary">@Loc.T("stats.activity_30d")</MudText>
                 </MudItem>
             </MudGrid>
 
-            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 mb-1 d-block">13 dernières semaines</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 mb-1 d-block">@Loc.T("stats.section_calendar")</MudText>
             <HeatmapCalendar Counts="@_dailyBrews" WeeksBack="13" />
         </MudPaper>
 
@@ -58,32 +60,32 @@ else
         {
             <MudPaper Class="pa-4" Elevation="0">
                 <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">
-                    <MudIcon Icon="@Icons.Material.Filled.Euro" Size="Size.Small" /> Budget
+                    <MudIcon Icon="@Icons.Material.Filled.Euro" Size="Size.Small" /> @Loc.T("stats.section_budget")
                 </MudText>
-                <DetailRow Label="Total dépensé en sacs" Value="@_budget.TotalCoffees" />
+                <DetailRow Label="@Loc.T("stats.label_total_spent")" Value="@_budget.TotalCoffees" />
                 @if (_budget.HomeCupCount > 0 && !string.IsNullOrEmpty(_budget.AvgHomeCup))
                 {
-                    <DetailRow Label="@($"Coût moyen / tasse maison ({_budget.HomeCupCount})")" Value="@_budget.AvgHomeCup" />
+                    <DetailRow Label="@($"{Loc.T("stats.label_avg_per_cup")} ({_budget.HomeCupCount})")" Value="@_budget.AvgHomeCup" />
                 }
                 @if (!string.IsNullOrEmpty(_budget.TotalShops))
                 {
-                    <DetailRow Label="Total dépensé en boutique" Value="@_budget.TotalShops" />
+                    <DetailRow Label="@Loc.T("stats.label_total_shops")" Value="@_budget.TotalShops" />
                 }
             </MudPaper>
         }
 
         <MudPaper Class="pa-4" Elevation="0">
-            <DetailRow Label="Méthode favorite" Value="@_topMethodLabel" />
-            <DetailRow Label="Origine la plus achetée" Value="@_topOriginLabel" />
+            <DetailRow Label="@Loc.T("stats.label_top_method")" Value="@_topMethodLabel" />
+            <DetailRow Label="@Loc.T("stats.label_top_origin")" Value="@_topOriginLabel" />
             <div class="detail-row">
-                <span class="detail-label">Note moyenne brews</span>
+                <span class="detail-label">@Loc.T("stats.label_avg_brew")</span>
                 <span class="d-flex align-center" style="gap:8px;">
                     <StarRating Value="@((int)Math.Round(_avgBrewRating))" ReadOnly="true" Size="Size.Small" />
                     <span class="mud-text-secondary" style="font-size:14px;">@(_avgBrewRating > 0 ? _avgBrewRating.ToString("0.0") : "—")</span>
                 </span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Note moyenne shops</span>
+                <span class="detail-label">@Loc.T("stats.label_avg_visit")</span>
                 <span class="d-flex align-center" style="gap:8px;">
                     <StarRating Value="@((int)Math.Round(_avgShopRating))" ReadOnly="true" Size="Size.Small" />
                     <span class="mud-text-secondary" style="font-size:14px;">@(_avgShopRating > 0 ? _avgShopRating.ToString("0.0") : "—")</span>
@@ -94,22 +96,20 @@ else
         @if (_topCoffee is not null)
         {
             <MudPaper Class="pa-4" Elevation="0">
-                <MudText Typo="Typo.overline" Class="mud-text-secondary">Meilleur café</MudText>
+                <MudText Typo="Typo.overline" Class="mud-text-secondary">@Loc.T("stats.label_top_coffee")</MudText>
                 <MudText Class="mt-1" Style="font-weight:600;">@_topCoffee.Coffee.Name</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">@_topCoffee.Coffee.Roaster</MudText>
                 <div class="d-flex align-center mt-2" style="gap:8px;">
                     <StarRating Value="@((int)Math.Round(_topCoffee.Avg))" ReadOnly="true" Size="Size.Small" />
-                    <span class="mud-text-secondary" style="font-size:12px;">@_topCoffee.Avg.ToString("0.0") sur @_topCoffee.Count brews</span>
+                    <span class="mud-text-secondary" style="font-size:12px;">@Loc.T("stats.top_coffee_score", _topCoffee.Avg.ToString("0.0"), _topCoffee.Count)</span>
                 </div>
             </MudPaper>
         }
 
-@* class type defined below in @code *@
-
         @if (_methodCounts.Count > 1)
         {
             <MudPaper Class="pa-4" Elevation="0">
-                <MudText Typo="Typo.overline" Class="mud-text-secondary mb-3">Répartition par méthode</MudText>
+                <MudText Typo="Typo.overline" Class="mud-text-secondary mb-3">@Loc.T("stats.section_methods")</MudText>
                 <MudStack Spacing="2">
                     @foreach (var kv in _methodCounts.OrderByDescending(x => x.Value))
                     {
@@ -138,6 +138,9 @@ else
     private int _brewsLast30;
     private string _topMethodLabel = "—";
     private string _topOriginLabel = "—";
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
     private double _avgBrewRating;
     private double _avgShopRating;
     private TopCoffee? _topCoffee;
@@ -151,6 +154,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        Loc.LanguageChanged += OnLangChanged;
         _coffees = await Db.Coffees.ToCollection().ToList();
         _brews = await Db.Brews.ToCollection().ToList();
         _visits = await Db.ShopVisits.ToCollection().ToList();
@@ -168,6 +172,8 @@ else
         var topMethod = _methodCounts.OrderByDescending(x => x.Value).FirstOrDefault();
         if (_methodCounts.Count > 0)
             _topMethodLabel = $"{topMethod.Key.GetLabel()} ({topMethod.Value})";
+        else
+            _topMethodLabel = Loc.T("common.none");
 
         var byCountry = _coffees
             .Where(c => !string.IsNullOrEmpty(c.Country))
@@ -176,6 +182,8 @@ else
         var topOrigin = byCountry.OrderByDescending(x => x.Value).FirstOrDefault();
         if (byCountry.Count > 0)
             _topOriginLabel = $"{topOrigin.Key} ({topOrigin.Value})";
+        else
+            _topOriginLabel = Loc.T("common.none");
 
         if (_brews.Count > 0)
             _avgBrewRating = _brews.Average(b => b.Rating);

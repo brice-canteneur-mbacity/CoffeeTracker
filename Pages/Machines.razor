@@ -3,12 +3,14 @@
     (préparateurs d'abord, accessoires ensuite). Click sur une carte → /machines/{id}/edit.
 *@
 @page "/machines"
+@implements IDisposable
 @inject CoffeeDb Db
 @inject NavigationManager Nav
+@inject LocalizationService Loc
 
-<PageTitle>Machines</PageTitle>
+<PageTitle>@Loc.T("machines.title")</PageTitle>
 
-<PageHeader Title="Machines" Subtitle="@($"{_machines.Count} machine{(_machines.Count > 1 ? "s" : "")}")">
+<PageHeader Title="@Loc.T("machines.title")" Subtitle="@Loc.T("machines.subtitle_count", _machines.Count, _machines.Count > 1 ? "s" : "")">
     <Action>
         <MudIconButton Icon="@Icons.Material.Filled.Add"
                        Color="Color.Primary"
@@ -26,11 +28,11 @@ else if (_machines.Count == 0)
 {
     <MudPaper Class="pa-8 d-flex flex-column align-center" Elevation="0">
         <MudIcon Icon="@Icons.Material.Filled.CoffeeMaker" Size="Size.Large" Class="mb-3" Style="color: var(--coffee-accent-soft)" />
-        <MudText Typo="Typo.h6">Aucune machine</MudText>
-        <MudText Class="mb-4 mud-text-secondary">Ajoute ton matos : machine espresso, moulin, bouilloire…</MudText>
+        <MudText Typo="Typo.h6">@Loc.T("machines.empty")</MudText>
+        <MudText Class="mb-4 mud-text-secondary">@Loc.T("machines.empty_hint")</MudText>
         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="@(() => Nav.NavigateTo("machines/new"))">Ajouter une machine</MudButton>
+                   OnClick="@(() => Nav.NavigateTo("machines/new"))">@Loc.T("machines.cta_add")</MudButton>
     </MudPaper>
 }
 else
@@ -82,9 +84,13 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        Loc.LanguageChanged += OnLangChanged;
         _machines = await Db.Machines.OrderBy(nameof(Machine.CreatedAt)).Reverse().ToList();
         _loading = false;
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
 
     private static string TypeIcon(MachineType t) => t switch
     {

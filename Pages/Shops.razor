@@ -5,19 +5,21 @@
 *@
 @page "/shops"
 @implements IAsyncDisposable
+@implements IDisposable
 @inject CoffeeDb Db
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject LocalizationService Loc
 
-<PageTitle>Coffee shops</PageTitle>
+<PageTitle>@Loc.T("shops.title")</PageTitle>
 
-<PageHeader Title="Coffee shops"
-            Subtitle="@($"{_aggregates.Count} shop{(_aggregates.Count > 1 ? "s" : "")} · {_totalVisits} visite{(_totalVisits > 1 ? "s" : "")}")">
+<PageHeader Title="@Loc.T("shops.title")"
+            Subtitle="@Loc.T("shops.subtitle", _aggregates.Count, _aggregates.Count > 1 ? "s" : "", _totalVisits, _totalVisits > 1 ? "s" : "")">
     <Action>
         <MudIconButton Icon="@(_mapMode ? Icons.Material.Filled.ViewList : Icons.Material.Filled.Map)"
                        Size="Size.Medium"
                        OnClick="@(() => _mapMode = !_mapMode)"
-                       aria-label="@(_mapMode ? "Vue liste" : "Vue carte")" />
+                       aria-label="@(_mapMode ? Loc.T("shops.toggle_to_list") : Loc.T("shops.toggle_to_map"))" />
         <MudIconButton Icon="@Icons.Material.Filled.Add"
                        Color="Color.Primary"
                        Variant="Variant.Filled"
@@ -32,7 +34,7 @@
 }
 else
 {
-    <MudTextField @bind-Value="_search" Placeholder="Rechercher (nom, ville…)"
+    <MudTextField @bind-Value="_search" Placeholder="@Loc.T("shops.search_placeholder")"
                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3"
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                   Clearable="true" Immediate="true" DebounceInterval="150" />
@@ -47,19 +49,19 @@ else
         if (filtered.Count == 0)
         {
             <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block text-center">
-                Aucun shop à afficher.
+                @Loc.T("shops.map_no_data")
             </MudText>
         }
         else if (withCoords == 0)
         {
             <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block text-center">
-                Aucun des @filtered.Count shop(s) n'a de coordonnées GPS — utilise « Rechercher en ligne » sur le formulaire shop pour les géolocaliser.
+                @Loc.T("shops.map_no_coords", filtered.Count)
             </MudText>
         }
         else if (withCoords < filtered.Count)
         {
             <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block text-center">
-                @withCoords sur @filtered.Count shop(s) localisés sur la carte.
+                @Loc.T("shops.map_partial", withCoords, filtered.Count)
             </MudText>
         }
     }
@@ -69,16 +71,16 @@ else
             <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Large" Class="mb-3" Style="color: var(--coffee-accent-soft)" />
             @if (hasSearch)
             {
-                <MudText Typo="Typo.h6">Aucun résultat</MudText>
-                <MudText Class="mud-text-secondary">pour « @_search »</MudText>
+                <MudText Typo="Typo.h6">@Loc.T("shops.empty_search_title")</MudText>
+                <MudText Class="mud-text-secondary">@Loc.T("shops.empty_search_for", _search)</MudText>
             }
             else
             {
-                <MudText Typo="Typo.h6">Aucun shop encore</MudText>
-                <MudText Class="mb-4 mud-text-secondary">Ajoute un shop pour suivre tes visites.</MudText>
+                <MudText Typo="Typo.h6">@Loc.T("shops.empty")</MudText>
+                <MudText Class="mb-4 mud-text-secondary">@Loc.T("shops.empty_hint")</MudText>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
-                           OnClick="@(() => Nav.NavigateTo("shops/new"))">Ajouter un shop</MudButton>
+                           OnClick="@(() => Nav.NavigateTo("shops/new"))">@Loc.T("shops.cta_add")</MudButton>
             }
         </MudPaper>
     }
@@ -118,14 +120,14 @@ else
                             <span>
                                 @if (a.VisitCount == 0)
                                 {
-                                    <span>Aucune visite</span>
+                                    <span>@Loc.T("shops.no_visits")</span>
                                 }
                                 else
                                 {
-                                    <span>@a.VisitCount visite@(a.VisitCount > 1 ? "s" : "")</span>
+                                    <span>@Loc.T("shops.visit_count", a.VisitCount, a.VisitCount > 1 ? "s" : "")</span>
                                     @if (a.LastVisitDate is DateOnly d)
                                     {
-                                        <span> · dernière le @Format.Date(d)</span>
+                                        <span> · @Loc.T("shops.last_visit", Format.Date(d))</span>
                                     }
                                 }
                             </span>
@@ -185,6 +187,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        Loc.LanguageChanged += OnLangChanged;
         var shops = await Db.Shops.ToCollection().ToList();
         var visits = await Db.ShopVisits.ToCollection().ToList();
         _totalVisits = visits.Count;
@@ -248,6 +251,9 @@ else
             _mapInitialized = false;
         }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
 
     public async ValueTask DisposeAsync()
     {

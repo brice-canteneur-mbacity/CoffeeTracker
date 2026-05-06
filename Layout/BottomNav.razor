@@ -5,6 +5,7 @@
 *@
 @implements IDisposable
 @inject NavigationManager Nav
+@inject LocalizationService Loc
 
 <nav class="bottom-nav">
     @foreach (var item in _items)
@@ -14,7 +15,7 @@
                 class="@(active ? "bottom-nav-item active" : "bottom-nav-item")"
                 @onclick="() => Nav.NavigateTo(item.Path)">
             <MudIcon Icon="@item.Icon" Size="Size.Medium" />
-            <span>@item.Label</span>
+            <span>@Loc.T(item.LabelKey)</span>
         </button>
     }
 </nav>
@@ -63,21 +64,24 @@
 </style>
 
 @code {
-    private record NavItem(string Path, string Label, string Icon);
+    private record NavItem(string Path, string LabelKey, string Icon);
 
     private readonly NavItem[] _items =
     {
-        new("coffees", "Cafés", Icons.Material.Filled.Coffee),
-        new("brews", "Brews", Icons.Material.Filled.LocalCafe),
-        new("machines", "Machines", Icons.Material.Filled.CoffeeMaker),
-        new("shops", "Shops", Icons.Material.Filled.Storefront),
-        new("stats", "Stats", Icons.Material.Filled.BarChart)
+        new("coffees", "nav.coffees", Icons.Material.Filled.Coffee),
+        new("brews", "nav.brews", Icons.Material.Filled.LocalCafe),
+        new("machines", "nav.machines", Icons.Material.Filled.CoffeeMaker),
+        new("shops", "nav.shops", Icons.Material.Filled.Storefront),
+        new("stats", "nav.stats", Icons.Material.Filled.BarChart)
     };
 
     protected override void OnInitialized()
     {
         Nav.LocationChanged += OnLocationChanged;
+        Loc.LanguageChanged += OnLanguageChanged;
     }
+
+    private void OnLanguageChanged() => InvokeAsync(StateHasChanged);
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
@@ -87,6 +91,7 @@
     public void Dispose()
     {
         Nav.LocationChanged -= OnLocationChanged;
+        Loc.LanguageChanged -= OnLanguageChanged;
     }
 
     private bool IsActive(string path)

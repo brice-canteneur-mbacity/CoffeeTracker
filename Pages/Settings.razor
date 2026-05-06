@@ -21,35 +21,48 @@
 @inject SyncService Sync
 @inject AlertsService Alerts
 @inject MigrationService Migrations
+@inject LocalizationService Loc
 
-<PageTitle>Réglages</PageTitle>
+<PageTitle>@Loc.T("settings.title")</PageTitle>
 
-<PageHeader Title="Réglages" Back="true" BackUrl="stats" />
+<PageHeader Title="@Loc.T("settings.title")" Back="true" BackUrl="stats" />
 
 <MudStack Spacing="3">
 
     <MudPaper Class="pa-4" Elevation="0">
-        <MudText Typo="Typo.h6" Class="mb-1">Apparence</MudText>
+        <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_appearance")</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
-            « Système » suit le réglage de ton OS. Sinon force clair ou sombre.
+            @Loc.T("settings.appearance_help")
         </MudText>
         <MudRadioGroup T="string" Value="@Theme.Preference" ValueChanged="OnThemeChanged">
-            <MudRadio T="string" Value="@("system")" Color="Color.Primary">Système</MudRadio>
-            <MudRadio T="string" Value="@("light")" Color="Color.Primary">Clair</MudRadio>
-            <MudRadio T="string" Value="@("dark")" Color="Color.Primary">Sombre</MudRadio>
+            <MudRadio T="string" Value="@("system")" Color="Color.Primary">@Loc.T("settings.theme_system")</MudRadio>
+            <MudRadio T="string" Value="@("light")" Color="Color.Primary">@Loc.T("settings.theme_light")</MudRadio>
+            <MudRadio T="string" Value="@("dark")" Color="Color.Primary">@Loc.T("settings.theme_dark")</MudRadio>
         </MudRadioGroup>
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
-        <MudText Typo="Typo.h6" Class="mb-1">Sync entre appareils (GitHub Gist)</MudText>
+        <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_language")</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
-            Stocke tes données dans un Gist privé sur GitHub. Configure le même token sur tes autres
-            appareils pour synchroniser. Crée un
-            <MudLink Href="https://github.com/settings/tokens?type=beta" Target="_blank">token GitHub</MudLink>
-            avec uniquement le scope <code>gist</code>.
+            @Loc.T("settings.language_help")
+        </MudText>
+        <MudRadioGroup T="string" Value="@_langValue" ValueChanged="OnLanguageChangedAsync">
+            <MudRadio T="string" Value="@("auto")" Color="Color.Primary">@Loc.T("settings.language_auto")</MudRadio>
+            <MudRadio T="string" Value="@("fr")" Color="Color.Primary">@Loc.T("settings.language_fr")</MudRadio>
+            <MudRadio T="string" Value="@("en")" Color="Color.Primary">@Loc.T("settings.language_en")</MudRadio>
+            <MudRadio T="string" Value="@("it")" Color="Color.Primary">@Loc.T("settings.language_it")</MudRadio>
+        </MudRadioGroup>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="0">
+        <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_sync")</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            @Loc.T("settings.sync_help")
+            <MudLink Href="https://github.com/settings/tokens?type=beta" Target="_blank">@Loc.T("settings.sync_token_link")</MudLink>
+            @Loc.T("settings.sync_token_scope") <code>gist</code>.
         </MudText>
 
-        <MudTextField @bind-Value="_pat" Label="GitHub Personal Access Token"
+        <MudTextField @bind-Value="_pat" Label="@Loc.T("settings.sync_field_pat")"
                       Variant="Variant.Outlined" InputType="InputType.Password"
                       Placeholder="github_pat_…" Class="mb-2" />
 
@@ -57,19 +70,19 @@
             <MudButton Variant="Variant.Filled" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Save"
                        OnClick="SavePatAsync" Disabled="Sync.IsBusy">
-                Enregistrer le token
+                @Loc.T("settings.sync_btn_save")
             </MudButton>
             @if (Sync.IsConfigured)
             {
                 <MudButton Variant="Variant.Filled" Color="Color.Tertiary"
                            StartIcon="@Icons.Material.Filled.Sync"
                            OnClick="SyncNowAsync" Disabled="Sync.IsBusy">
-                    @(Sync.IsBusy ? "Synchronisation…" : "Synchroniser maintenant")
+                    @(Sync.IsBusy ? Loc.T("settings.sync_btn_now_busy") : Loc.T("settings.sync_btn_now_idle"))
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Default"
                            StartIcon="@Icons.Material.Filled.LinkOff"
                            OnClick="DisconnectSyncAsync" Disabled="Sync.IsBusy">
-                    Déconnecter
+                    @Loc.T("settings.sync_btn_disconnect")
                 </MudButton>
             }
         </div>
@@ -79,16 +92,16 @@
             <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">
                 @if (Sync.LastSync is DateTime ls)
                 {
-                    <span>✓ Dernière sync : @ls.ToLocalTime().ToString("dd MMM, HH:mm")</span>
+                    <span>@Loc.T("settings.sync_last", ls.ToLocalTime().ToString("dd MMM, HH:mm"))</span>
                 }
                 else
                 {
-                    <span>Pas encore synchronisé. Clique « Synchroniser maintenant » pour pousser les données et créer le Gist privé.</span>
+                    <span>@Loc.T("settings.sync_first_time")</span>
                 }
                 @if (!string.IsNullOrEmpty(Sync.GistId))
                 {
                     <br/>
-                    <span>Gist : <code>@Sync.GistId</code></span>
+                    <span>@Loc.T("settings.sync_gist_label") <code>@Sync.GistId</code></span>
                 }
             </MudText>
         }
@@ -103,22 +116,21 @@
         }
 
         <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-3" Style="font-style:italic;">
-            ⚠️ Stratégie last-write-wins : « Synchroniser » fait d'abord un pull (écrase tes données locales par celles du Gist), puis push tes données. Pour usage solo multi-appareils, utilise le bouton sur le device le plus à jour avant de basculer.
+            @Loc.T("settings.sync_lww_warning")
         </MudText>
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
-        <MudText Typo="Typo.h6" Class="mb-1">Sauvegarde locale</MudText>
+        <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_backup")</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
-            Tes données sont stockées localement dans ton navigateur. Exporte régulièrement
-            pour ne rien perdre en cas de réinstallation ou de changement d'appareil.
+            @Loc.T("settings.backup_help")
         </MudText>
 
         <MudStack Spacing="2">
             <MudButton Variant="Variant.Filled" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Download"
                        OnClick="ExportAsync" Disabled="_busy">
-                Exporter en JSON
+                @Loc.T("settings.btn_export")
             </MudButton>
 
             <div>
@@ -126,85 +138,80 @@
                            accept="application/json" style="display:none;" />
                 <label for="importInput" class="upload-button" style="padding: 10px 16px; font-size: 14px;">
                     <MudIcon Icon="@Icons.Material.Filled.Upload" Size="Size.Small" />
-                    <span>Importer un fichier JSON…</span>
+                    <span>@Loc.T("settings.btn_import")</span>
                 </label>
             </div>
         </MudStack>
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
-        <MudText Typo="Typo.h6" Class="mb-1">Notifications</MudText>
+        <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_notifications")</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
-            Rappels affichés à l'ouverture de l'app : stock bas (≤ 30 g), sac vide,
-            café au-delà du pic de dégazage (> 35 j).
-            Si activé et autorisé par le navigateur, tu reçois aussi une notification système.
+            @Loc.T("settings.notifications_help")
         </MudText>
         @if (!_notifSupported)
         {
-            <MudAlert Severity="Severity.Info" Dense="true">Ton navigateur ne supporte pas l'API Notifications.</MudAlert>
+            <MudAlert Severity="Severity.Info" Dense="true">@Loc.T("settings.notifications_unsupported")</MudAlert>
         }
         else
         {
             <MudSwitch T="bool" Value="@_notifEnabled" ValueChanged="OnToggleNotifsAsync"
                        Color="Color.Primary"
-                       Label="@(_notifEnabled ? "Activées" : "Désactivées")" />
+                       Label="@(_notifEnabled ? Loc.T("settings.notifications_enabled") : Loc.T("settings.notifications_disabled"))" />
             <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-1">
-                Permission navigateur :
+                @Loc.T("settings.notifications_permission")
                 <strong>@_notifPermission</strong>
                 @if (_notifPermission == "denied")
                 {
-                    <span> — débloque dans les réglages du navigateur si tu changes d'avis.</span>
+                    <span> @Loc.T("settings.notifications_permission_denied")</span>
                 }
             </MudText>
         }
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
-        <MudText Typo="Typo.h6" Class="mb-1">Recherche de coffee shops</MudText>
+        <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_search")</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
-            Sans clé : on utilise OpenStreetMap (gratuit, données moins riches).
-            Avec une clé Google Maps Platform : Google Places (plus précis, photos potentielles).
-            Le quota gratuit Google (200 $/mois de crédit) couvre largement un usage perso.
+            @Loc.T("settings.search_help")
             <MudLink Href="https://developers.google.com/maps/documentation/javascript/get-api-key"
-                     Target="_blank">Obtenir une clé</MudLink>.
-            Pense à restreindre la clé par HTTP referrer dans la console Google Cloud.
+                     Target="_blank">@Loc.T("settings.search_get_key")</MudLink>.
+            @Loc.T("settings.search_restrict")
         </MudText>
-        <MudTextField @bind-Value="_googleKey" Label="Clé API Google (optionnelle)"
+        <MudTextField @bind-Value="_googleKey" Label="@Loc.T("settings.search_field_key")"
                       Variant="Variant.Outlined" InputType="InputType.Password"
                       Placeholder="AIzaSy…" />
         <div class="d-flex mt-2" style="gap:8px;">
             <MudButton Variant="Variant.Filled" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Save"
-                       OnClick="SaveGoogleKeyAsync" Disabled="_busy">Enregistrer</MudButton>
+                       OnClick="SaveGoogleKeyAsync" Disabled="_busy">@Loc.T("settings.search_btn_save")</MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Default"
                        StartIcon="@Icons.Material.Filled.Clear"
-                       OnClick="ClearGoogleKeyAsync" Disabled="_busy">Effacer</MudButton>
+                       OnClick="ClearGoogleKeyAsync" Disabled="_busy">@Loc.T("settings.search_btn_clear")</MudButton>
         </div>
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
-        <MudText Typo="Typo.h6" Class="mb-1">Diagnostic & maintenance</MudText>
+        <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_diagnostic")</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
-            Si tes anciennes visites n'apparaissent pas dans la liste des shops, lance un diagnostic
-            puis « Reconstruire les shops » pour relancer la migration.
+            @Loc.T("settings.diagnostic_help")
         </MudText>
 
         @if (_diag is not null)
         {
             <MudPaper Class="pa-3 mb-3" Elevation="0" Style="background: var(--coffee-surface-soft);">
                 <MudText Typo="Typo.caption" Class="d-block">
-                    <strong>Visites :</strong> @_diag.VisitCount ·
-                    <strong>Shops :</strong> @_diag.ShopCount ·
-                    <strong>Visites non reliées :</strong> @_diag.PendingVisitCount
+                    <strong>@Loc.T("settings.diagnostic_visits")</strong> @_diag.VisitCount ·
+                    <strong>@Loc.T("settings.diagnostic_shops")</strong> @_diag.ShopCount ·
+                    <strong>@Loc.T("settings.diagnostic_pending")</strong> @_diag.PendingVisitCount
                     @if (_diag.OrphanVisitCount > 0)
                     {
-                        <span> · <strong>Orphelines :</strong> @_diag.OrphanVisitCount</span>
+                        <span> · <strong>@Loc.T("settings.diagnostic_orphans")</strong> @_diag.OrphanVisitCount</span>
                     }
                 </MudText>
                 @if (_diag.PendingPreview.Count > 0)
                 {
                     <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">
-                        À migrer (aperçu) :
+                        @Loc.T("settings.diagnostic_pending_preview")
                         @foreach (var p in _diag.PendingPreview)
                         {
                             <span class="d-block ml-2">• @p</span>
@@ -218,12 +225,12 @@
             <MudButton Variant="Variant.Outlined" Color="Color.Default"
                        StartIcon="@Icons.Material.Filled.Search"
                        OnClick="DiagnoseAsync" Disabled="_busy">
-                Diagnostiquer
+                @Loc.T("settings.btn_diagnose")
             </MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Build"
                        OnClick="RebuildShopsAsync" Disabled="_busy">
-                Reconstruire les shops
+                @Loc.T("settings.btn_rebuild")
             </MudButton>
         </div>
 
@@ -234,14 +241,14 @@
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
-        <MudText Typo="Typo.h6" Class="mb-1">Zone dangereuse</MudText>
+        <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_danger")</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
-            Supprime toutes les données de l'application (cafés, brews, visites). Irréversible.
+            @Loc.T("settings.danger_help")
         </MudText>
         <MudButton Variant="Variant.Filled" Color="Color.Error"
                    StartIcon="@Icons.Material.Filled.DeleteForever"
                    OnClick="EraseAllAsync" Disabled="_busy">
-            Tout effacer
+            @Loc.T("settings.btn_erase")
         </MudButton>
     </MudPaper>
 
@@ -256,12 +263,16 @@
     private string _notifPermission = "default";
     private MigrationDiagnostic? _diag;
     private string? _migrationStatus;
+    /// <summary>"auto" si pas de préférence explicite, sinon le code langue ("fr"/"en"/"it").</summary>
+    private string _langValue = "auto";
 
     protected override async Task OnInitializedAsync()
     {
         _googleKey = await PlaceSearch.GetGoogleKeyAsync();
         _pat = Sync.Pat;
         Sync.StateChanged += OnSyncChanged;
+
+        _langValue = Loc.HasUserPreference ? Loc.CurrentLanguage : "auto";
 
         _notifSupported = await Alerts.IsSupportedAsync();
         if (_notifSupported)
@@ -280,14 +291,14 @@
             _notifPermission = await Alerts.GetPermissionAsync();
             if (!granted)
             {
-                Snackbar.Add("Permission notifications refusée par le navigateur", Severity.Warning);
+                Snackbar.Add(Loc.T("settings.snack_notifs_denied"), Severity.Warning);
                 _notifEnabled = false;
                 return;
             }
         }
         await Alerts.SetEnabledAsync(enabled);
         _notifEnabled = enabled;
-        Snackbar.Add(enabled ? "Notifications activées" : "Notifications désactivées", Severity.Success);
+        Snackbar.Add(enabled ? Loc.T("settings.snack_notifs_on") : Loc.T("settings.snack_notifs_off"), Severity.Success);
     }
 
     private void OnSyncChanged() => InvokeAsync(StateHasChanged);
@@ -297,13 +308,13 @@
     private async Task SavePatAsync()
     {
         await Sync.SetPatAsync(_pat);
-        Snackbar.Add(string.IsNullOrWhiteSpace(_pat) ? "Token effacé" : "Token enregistré", Severity.Success);
+        Snackbar.Add(string.IsNullOrWhiteSpace(_pat) ? Loc.T("settings.snack_token_cleared") : Loc.T("settings.snack_token_saved"), Severity.Success);
     }
 
     private async Task SyncNowAsync()
     {
         var ok = await Sync.SyncAsync();
-        if (ok) Snackbar.Add("Synchronisation OK", Severity.Success);
+        if (ok) Snackbar.Add(Loc.T("settings.snack_sync_ok"), Severity.Success);
         else if (!string.IsNullOrEmpty(Sync.LastError)) Snackbar.Add(Sync.LastError, Severity.Error);
     }
 
@@ -311,15 +322,15 @@
     {
         var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
         {
-            Title = "Déconnecter la sync ?",
-            Message = "Le token et l'identifiant Gist seront effacés sur cet appareil. Tes données locales restent intactes. Le Gist sur GitHub n'est pas supprimé (tu peux le faire manuellement si besoin).",
-            YesText = "Déconnecter",
-            CancelText = "Annuler"
+            Title = Loc.T("settings.sync_disconnect_title"),
+            Message = Loc.T("settings.sync_disconnect_msg"),
+            YesText = Loc.T("settings.sync_btn_disconnect_yes"),
+            CancelText = Loc.T("common.cancel")
         });
         if (ok != true) return;
         await Sync.DisconnectAsync();
         _pat = null;
-        Snackbar.Add("Sync déconnectée", Severity.Info);
+        Snackbar.Add(Loc.T("settings.snack_sync_disconnected"), Severity.Info);
     }
 
     private async Task SaveGoogleKeyAsync()
@@ -328,11 +339,11 @@
         try
         {
             await PlaceSearch.SetGoogleKeyAsync(_googleKey);
-            Snackbar.Add(string.IsNullOrWhiteSpace(_googleKey) ? "Clé effacée" : "Clé enregistrée", Severity.Success);
+            Snackbar.Add(string.IsNullOrWhiteSpace(_googleKey) ? Loc.T("settings.snack_key_cleared") : Loc.T("settings.snack_key_saved"), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("common.error_prefix", ex.Message), Severity.Error);
         }
         finally
         {
@@ -344,12 +355,21 @@
     {
         _googleKey = null;
         await PlaceSearch.SetGoogleKeyAsync(null);
-        Snackbar.Add("Clé effacée — passage en OpenStreetMap", Severity.Info);
+        Snackbar.Add(Loc.T("settings.snack_key_cleared"), Severity.Info);
     }
 
     private async Task OnThemeChanged(string pref)
     {
         await Theme.SetPreferenceAsync(pref);
+    }
+
+    private async Task OnLanguageChangedAsync(string val)
+    {
+        _langValue = val;
+        if (val == "auto")
+            await Loc.ResetToBrowserAsync();
+        else
+            await Loc.SetLanguageAsync(val);
     }
 
     private static readonly JsonSerializerOptions ExportOptions = new()
@@ -393,11 +413,12 @@
             var filename = $"coffee-tracker-{DateTime.Now:yyyy-MM-dd}.json";
             await JS.InvokeVoidAsync("coffeeData.downloadJson", filename, json);
 
-            Snackbar.Add($"Sauvegarde téléchargée ({coffees.Count} cafés, {brews.Count} brews, {shops.Count} shops, {visits.Count} visites, {machines.Count} machines)", Severity.Success);
+            var summary = Loc.T("settings.import_summary", coffees.Count, brews.Count, shops.Count, visits.Count, machines.Count);
+            Snackbar.Add(Loc.T("settings.snack_export_ok", summary), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur export : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("settings.snack_export_error", ex.Message), Severity.Error);
         }
         finally
         {
@@ -419,7 +440,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur lecture du fichier : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("settings.snack_import_read_error", ex.Message), Severity.Error);
             return;
         }
 
@@ -430,23 +451,25 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Fichier JSON invalide : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("settings.snack_import_invalid", ex.Message), Severity.Error);
             return;
         }
 
         if (parsed is null)
         {
-            Snackbar.Add("Fichier JSON vide ou invalide", Severity.Error);
+            Snackbar.Add(Loc.T("settings.snack_import_empty"), Severity.Error);
             return;
         }
 
-        var summary = $"{parsed.Coffees?.Count ?? 0} cafés, {parsed.Brews?.Count ?? 0} brews, {parsed.Shops?.Count ?? 0} shops, {parsed.ShopVisits?.Count ?? 0} visites, {parsed.Machines?.Count ?? 0} machines";
+        var summary = Loc.T("settings.import_summary",
+            parsed.Coffees?.Count ?? 0, parsed.Brews?.Count ?? 0, parsed.Shops?.Count ?? 0,
+            parsed.ShopVisits?.Count ?? 0, parsed.Machines?.Count ?? 0);
         var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
         {
-            Title = "Importer ?",
-            Message = $"Cette opération va REMPLACER toutes tes données actuelles par {summary}. Continuer ?",
-            YesText = "Importer (remplacer)",
-            CancelText = "Annuler"
+            Title = Loc.T("settings.import_title"),
+            Message = Loc.T("settings.import_msg", summary),
+            YesText = Loc.T("settings.import_yes"),
+            CancelText = Loc.T("common.cancel")
         });
         if (ok != true) return;
 
@@ -467,11 +490,11 @@
 
             // Pour un fichier v ≤ 3 (sans Shops), la migration tournera au prochain reload
             // pour reconstruire les Shops à partir des visites.
-            Snackbar.Add($"Import terminé ({summary})", Severity.Success);
+            Snackbar.Add(Loc.T("settings.snack_import_ok", summary), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur import : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("settings.snack_import_error", ex.Message), Severity.Error);
         }
         finally
         {
@@ -489,8 +512,8 @@
         }
         catch (Exception ex)
         {
-            _migrationStatus = $"❌ Erreur diagnostic : {ex.Message}\n{ex.GetType().Name}";
-            Snackbar.Add("Diagnostic en échec — voir le message ci-dessous", Severity.Error);
+            _migrationStatus = $"{Loc.T("settings.diagnostic_error", ex.Message)}\n{ex.GetType().Name}";
+            Snackbar.Add(Loc.T("settings.diagnostic_failed_diag_snack"), Severity.Error);
         }
         finally
         {
@@ -508,19 +531,19 @@
             _diag = await Migrations.DiagnoseAsync();
             if (report.HasChanges)
             {
-                _migrationStatus = $"✓ {report.ShopsCreated} shop(s) créé(s), {report.VisitsLinked} visite(s) reliée(s).";
+                _migrationStatus = Loc.T("settings.diagnostic_success", report.ShopsCreated, report.VisitsLinked);
                 Snackbar.Add(_migrationStatus, Severity.Success);
             }
             else
             {
-                _migrationStatus = "Rien à migrer (toutes les visites sont déjà reliées à un shop).";
+                _migrationStatus = Loc.T("settings.diagnostic_nothing");
                 Snackbar.Add(_migrationStatus, Severity.Info);
             }
         }
         catch (Exception ex)
         {
-            _migrationStatus = $"❌ Erreur migration : {ex.Message}\n{ex.GetType().Name}\n{ex.StackTrace}";
-            Snackbar.Add("Migration en échec — voir le détail dans la section Diagnostic", Severity.Error);
+            _migrationStatus = $"{Loc.T("settings.diagnostic_migration_error", ex.Message)}\n{ex.GetType().Name}\n{ex.StackTrace}";
+            Snackbar.Add(Loc.T("settings.diagnostic_failed_snack"), Severity.Error);
         }
         finally
         {
@@ -532,10 +555,10 @@
     {
         var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
         {
-            Title = "Tout effacer ?",
-            Message = "Cette action supprime DÉFINITIVEMENT tous tes cafés, brews et visites. Action irréversible.",
-            YesText = "Tout effacer",
-            CancelText = "Annuler"
+            Title = Loc.T("settings.erase_title"),
+            Message = Loc.T("settings.erase_msg"),
+            YesText = Loc.T("settings.btn_erase"),
+            CancelText = Loc.T("common.cancel")
         });
         if (ok != true) return;
 
@@ -547,11 +570,11 @@
             await Db.ShopVisits.Clear();
             await Db.Shops.Clear();
             await Db.Machines.Clear();
-            Snackbar.Add("Toutes les données ont été supprimées", Severity.Info);
+            Snackbar.Add(Loc.T("settings.snack_erased"), Severity.Info);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Erreur : {ex.Message}", Severity.Error);
+            Snackbar.Add(Loc.T("common.error_prefix", ex.Message), Severity.Error);
         }
         finally
         {

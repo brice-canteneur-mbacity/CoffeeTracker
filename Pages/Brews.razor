@@ -6,15 +6,17 @@
 @page "/brews"
 @inject CoffeeDb Db
 @inject NavigationManager Nav
+@inject LocalizationService Loc
+@implements IDisposable
 
-<PageTitle>Brews</PageTitle>
+<PageTitle>@Loc.T("brews.title")</PageTitle>
 
-<PageHeader Title="Brews" Subtitle="@($"{_brews.Count} tasse{(_brews.Count > 1 ? "s" : "")}")">
+<PageHeader Title="@Loc.T("brews.title")" Subtitle="@Loc.T("brews.subtitle_count", _brews.Count, _brews.Count > 1 ? "s" : "")">
     <Action>
         <MudIconButton Icon="@Icons.Material.Filled.Timer"
                        Size="Size.Medium"
                        OnClick="@(() => Nav.NavigateTo("brews/timer"))"
-                       aria-label="Minuteur" />
+                       aria-label="@Loc.T("brews.cta_timer")" />
         <MudIconButton Icon="@Icons.Material.Filled.Add"
                        Color="Color.Primary"
                        Variant="Variant.Filled"
@@ -29,7 +31,7 @@
 }
 else
 {
-    <MudTextField @bind-Value="_search" Placeholder="Rechercher (méthode, café, notes…)"
+    <MudTextField @bind-Value="_search" Placeholder="@Loc.T("brews.search_placeholder")"
                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2"
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                   Clearable="true" Immediate="true" DebounceInterval="150" />
@@ -39,7 +41,7 @@ else
                  Color="@(_favoritesOnly ? Color.Error : Color.Default)"
                  Icon="@(_favoritesOnly ? Icons.Material.Filled.Favorite : Icons.Material.Filled.FavoriteBorder)"
                  OnClick="@(() => _favoritesOnly = !_favoritesOnly)">
-            Favoris uniquement
+            @Loc.T("brews.filter_favorites")
         </MudChip>
     </div>
 
@@ -52,16 +54,16 @@ else
             <MudIcon Icon="@Icons.Material.Filled.LocalCafe" Size="Size.Large" Class="mb-3" Style="color: var(--coffee-accent-soft)" />
             @if (hasSearch)
             {
-                <MudText Typo="Typo.h6">Aucun résultat</MudText>
-                <MudText Class="mud-text-secondary">pour « @_search »</MudText>
+                <MudText Typo="Typo.h6">@Loc.T("brews.empty_search")</MudText>
+                <MudText Class="mud-text-secondary">@Loc.T("shops.empty_search_for", _search)</MudText>
             }
             else
             {
-                <MudText Typo="Typo.h6">Aucun brew encore</MudText>
-                <MudText Class="mb-4 mud-text-secondary">Garde une trace de tes préparations.</MudText>
+                <MudText Typo="Typo.h6">@Loc.T("brews.empty")</MudText>
+                <MudText Class="mb-4 mud-text-secondary">@Loc.T("brews.empty_hint")</MudText>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
-                           OnClick="@(() => Nav.NavigateTo("brews/new"))">Ajouter un brew</MudButton>
+                           OnClick="@(() => Nav.NavigateTo("brews/new"))">@Loc.T("brews.cta_add")</MudButton>
             }
         </MudPaper>
     }
@@ -90,7 +92,7 @@ else
                             <StarRating Value="@b.Rating" ReadOnly="true" Size="Size.Small" />
                         </div>
                         <MudText Typo="Typo.body2" Class="mud-text-secondary text-truncate">
-                            @(coffee is null ? "Café supprimé" : $"{coffee.Roaster} · {coffee.Name}")
+                            @(coffee is null ? Loc.T("brews.coffee_deleted") : $"{coffee.Roaster} · {coffee.Name}")
                         </MudText>
                         <MudText Typo="Typo.caption" Class="mud-text-secondary text-truncate mt-1">
                             @Format.DateTimeShort(b.Date)
@@ -104,7 +106,7 @@ else
                         <MudIconButton Icon="@Icons.Material.Filled.Replay" Size="Size.Small"
                                        Color="Color.Primary"
                                        OnClick="@(() => GoDuplicate(b.Id))"
-                                       aria-label="Refaire ce brew" />
+                                       aria-label="@Loc.T("brews.btn_redo_aria")" />
                     </span>
                 </div>
             </MudPaper>
@@ -152,8 +154,12 @@ else
         _brews = rawBrews;
         var coffees = await Db.Coffees.ToCollection().ToList();
         _coffeesById = coffees.ToDictionary(c => c.Id, c => c);
+        Loc.LanguageChanged += OnLangChanged;
         _loading = false;
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
 
     private void GoDuplicate(int brewId) => Nav.NavigateTo($"brews/new?fromBrewId={brewId}");
 }

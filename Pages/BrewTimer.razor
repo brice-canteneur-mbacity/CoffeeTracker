@@ -6,16 +6,17 @@
 @page "/brews/timer"
 @implements IDisposable
 @inject NavigationManager Nav
+@inject LocalizationService Loc
 
-<PageTitle>Minuteur</PageTitle>
+<PageTitle>@Loc.T("brewtimer.title")</PageTitle>
 
-<PageHeader Title="Minuteur" Back="true" BackUrl="brews" />
+<PageHeader Title="@Loc.T("brewtimer.title")" Back="true" BackUrl="brews" />
 
 <div class="timer-screen">
 
     <!-- Preset selector -->
     <div class="preset-row">
-        <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">Préréglage cible</MudText>
+        <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1 d-block">@Loc.T("brewtimer.target_label")</MudText>
         <div class="d-flex flex-wrap" style="gap:6px;">
             @foreach (var p in _presets)
             {
@@ -80,7 +81,7 @@
 
     <!-- Digital timer -->
     <div class="timer-display">@FormatTimer(Elapsed)</div>
-    <div class="timer-target">/ @FormatTimer(TimeSpan.FromSeconds(_targetSeconds)) cible</div>
+    <div class="timer-target">/ @FormatTimer(TimeSpan.FromSeconds(_targetSeconds))</div>
 
     <!-- Controls -->
     <div class="controls">
@@ -88,24 +89,24 @@
         {
             <MudIconButton Icon="@Icons.Material.Filled.Pause"
                            Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large"
-                           OnClick="Pause" aria-label="Pause" />
+                           OnClick="Pause" aria-label="@Loc.T("brewtimer.cta_pause")" />
         }
         else
         {
             <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
                            Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large"
-                           OnClick="Start" aria-label="Démarrer" />
+                           OnClick="Start" aria-label="@Loc.T("brewtimer.cta_start")" />
         }
         <MudIconButton Icon="@Icons.Material.Filled.Refresh"
                        Color="Color.Default" Size="Size.Large"
-                       OnClick="Reset" aria-label="Réinitialiser"
+                       OnClick="Reset" aria-label="@Loc.T("brewtimer.cta_reset")"
                        Disabled="@(!_running && _accumulated == TimeSpan.Zero)" />
     </div>
 
     <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-4"
                StartIcon="@Icons.Material.Filled.Add"
                OnClick="@(() => Nav.NavigateTo("brews/new"))">
-        Créer un nouveau brew
+        @Loc.T("brews.cta_add")
     </MudButton>
 </div>
 
