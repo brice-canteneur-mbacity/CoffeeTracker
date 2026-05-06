@@ -1,3 +1,9 @@
+@*
+    Dialog de recherche d'un coffee shop en ligne. Affiche un MudAutocomplete<PlaceResult>
+    qui appelle PlaceSearchService.SearchAsync (debounce intégré au composant Mud).
+    Chip indicatif du provider courant en haut (Google / OpenStreetMap).
+    Sur sélection, ferme le dialog avec DialogResult.Ok(PlaceResult) — le caller récupère.
+*@
 @inject PlaceSearchService Search
 
 <MudDialog>

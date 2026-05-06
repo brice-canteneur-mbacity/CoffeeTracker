@@ -1,3 +1,8 @@
+@*
+    Liste de tous les brews avec recherche full-text + filtre favoris.
+    L'icône Replay sur chaque ligne déclenche un GoDuplicate → /brews/new?fromBrewId=X
+    qui pré-remplit le formulaire avec la recette du brew source mais réinitialise la date/heure.
+*@
 @page "/brews"
 @inject CoffeeDb Db
 @inject NavigationManager Nav
@@ -92,11 +97,13 @@ else
                             @if (!string.IsNullOrEmpty(ratio)) { <span> · @ratio</span> }
                             @if (b.DoseG is not null) { <span> · @b.DoseG g</span> }
                             @if (b.YieldG is not null) { <span> → @b.YieldG g</span> }
+                            @if (b.Milk is MilkType milk) { <span> · 🥛 @milk.GetLabel()</span> }
                         </MudText>
                     </div>
-                    <span @onclick="() => GoDuplicate(b.Id)" @onclick:stopPropagation="true">
+                    <span @onclick:stopPropagation="true">
                         <MudIconButton Icon="@Icons.Material.Filled.Replay" Size="Size.Small"
                                        Color="Color.Primary"
+                                       OnClick="@(() => GoDuplicate(b.Id))"
                                        aria-label="Refaire ce brew" />
                     </span>
                 </div>
@@ -132,6 +139,7 @@ else
             return b.Method.GetLabel().Contains(q, sc)
                 || (b.Notes?.Contains(q, sc) ?? false)
                 || (b.GrindSize?.Contains(q, sc) ?? false)
+                || (b.Milk?.GetLabel().Contains(q, sc) ?? false)
                 || (c?.Roaster.Contains(q, sc) ?? false)
                 || (c?.Name.Contains(q, sc) ?? false)
                 || (c?.Country?.Contains(q, sc) ?? false);

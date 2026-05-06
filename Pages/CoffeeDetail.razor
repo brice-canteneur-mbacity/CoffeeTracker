@@ -1,3 +1,11 @@
+@*
+    Fiche détaillée d'un café. Affiche origine/process/dégazage/stock/brews liés.
+    Trois actions principales :
+    - Bouton « Ajuster le stock » → ouvre StockAdjustmentDialog (cf. Coffee.StockAdjustmentG)
+    - Bouton « Marquer terminé » / « Rouvrir » → toggle FinishedAt
+    - Sélection 2 brews + bouton Comparer → BrewCompareDialog
+    La liste de brews permet aussi un « Refaire ce brew » qui navigue vers /brews/new?fromBrewId=X.
+*@
 @page "/coffees/{Id:int}"
 @inject CoffeeDb Db
 @inject NavigationManager Nav
@@ -251,6 +259,7 @@ else
                                         @{ var ratio = string.IsNullOrEmpty(b.Ratio) ? Format.Ratio(b.DoseG, b.YieldG) : b.Ratio; }
                                         @if (!string.IsNullOrEmpty(ratio)) { <span> · @ratio</span> }
                                         @if (b.DoseG is not null) { <span> · @b.DoseG g</span> }
+                                        @if (b.Milk is MilkType milk) { <span> · 🥛 @milk.GetLabel()</span> }
                                     </MudText>
                                 </div>
                                 <span @onclick:stopPropagation="true">

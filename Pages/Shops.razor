@@ -1,3 +1,8 @@
+@*
+    Liste des Shops (entité, depuis DB v5). Chaque ligne agrège : nb de visites, note moyenne,
+    date de dernière visite, photo dérivée du shop ou de la visite la + récente.
+    Toggle vue liste / vue carte (Leaflet, 1 marker par shop). Click sur une carte → /shops/{id}.
+*@
 @page "/shops"
 @implements IAsyncDisposable
 @inject CoffeeDb Db

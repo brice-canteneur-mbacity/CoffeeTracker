@@ -1,3 +1,8 @@
+// Composition root du host Blazor WebAssembly.
+// Tout est Scoped : en WASM mono-utilisateur, Scoped == Singleton à l'échelle de l'onglet
+// (l'app n'a pas de notion de "request"), donc parfait pour des services qui doivent
+// partager leur état (ex : SyncService.LastSync, ThemeService.Preference).
+
 using BlazorDexie.Extensions;
 using CoffeeTracker;
 using CoffeeTracker.Data;
@@ -10,15 +15,19 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
+// HttpClient pointe sur la base href de l'app — utile pour fetch des assets statiques.
+// La sync GitHub Gist crée ses propres HttpClient à part (cf. SyncService).
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 builder.Services.AddMudServices();
 builder.Services.AddBlazorDexie();
-builder.Services.AddScoped<CoffeeDb>();
-builder.Services.AddScoped<PlaceSearchService>();
-builder.Services.AddScoped<ThemeService>();
-builder.Services.AddScoped<SyncService>();
-builder.Services.AddScoped<AlertsService>();
-builder.Services.AddScoped<MigrationService>();
+
+// Services applicatifs.
+builder.Services.AddScoped<CoffeeDb>();              // Couche d'accès IndexedDB.
+builder.Services.AddScoped<PlaceSearchService>();    // Recherche shops Google/OSM (interop JS).
+builder.Services.AddScoped<ThemeService>();          // Light/dark + media query.
+builder.Services.AddScoped<SyncService>();           // GitHub Gist push/pull + debounced auto-push.
+builder.Services.AddScoped<AlertsService>();         // Évaluation rappels (stock bas, dégazage).
+builder.Services.AddScoped<MigrationService>();      // Migrations data idempotentes au démarrage.
 
 await builder.Build().RunAsync();

@@ -1,3 +1,8 @@
+@*
+    Dialog côte-à-côte de 2 brews : table 3 colonnes (label | valeur A | valeur B) avec
+    surlignage des lignes où les 2 valeurs diffèrent (compare-diff). Lit machine/grinder names
+    via la map fournie en paramètre Machines (évite des fetches DB dans le dialog).
+*@
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="0" Class="brew-compare">
@@ -71,6 +76,7 @@
         Add(list, "Yield", FmtDose(BrewA.YieldG), FmtDose(BrewB.YieldG));
         Add(list, "Ratio", BrewA.Ratio ?? "—", BrewB.Ratio ?? "—");
         Add(list, "Mouture", BrewA.GrindSize ?? "—", BrewB.GrindSize ?? "—");
+        Add(list, "Lait", BrewA.Milk?.GetLabel() ?? "—", BrewB.Milk?.GetLabel() ?? "—");
         Add(list, "Score", $"{BrewA.Rating}/5", $"{BrewB.Rating}/5");
         Add(list, "Favori", BrewA.IsFavorite ? "❤" : "—", BrewB.IsFavorite ? "❤" : "—");
         Add(list, "Machine", MachineName(BrewA.BrewerMachineId), MachineName(BrewB.BrewerMachineId));

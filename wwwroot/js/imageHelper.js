@@ -1,3 +1,6 @@
+// Helpers JS pour : (1) déclencher le download d'un blob JSON depuis Blazor (export),
+// (2) compresser une image en data URL via canvas (utilisé partout où on persiste une photo —
+// les data URLs PNG/JPEG sont stockées telles quelles dans IndexedDB).
 window.coffeeData = {
   /**
    * Trigger a browser download for the given JSON content.

@@ -1,3 +1,9 @@
+@*
+    Header sticky de chaque page : titre, sous-titre optionnel, bouton retour optionnel,
+    et — sur tous les écrans si la sync est configurée — un bouton sync rapide (icône
+    CloudDone / Sync animé / SyncProblem selon l'état). RenderFragment Action pour les
+    actions spécifiques à chaque page (édit, ajout, toggle, etc.).
+*@
 @implements IDisposable
 @inject NavigationManager Nav
 @inject SyncService Sync

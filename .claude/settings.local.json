@@ -5,7 +5,8 @@
       "Bash(where magick *)",
       "Bash(where convert *)",
       "Bash(where inkscape *)",
-      "PowerShell(powershell -ExecutionPolicy Bypass -File \"D:\\\\bcanteneur\\\\Documents\\\\GitHub\\\\coffee\\\\tools\\\\generate-icons.ps1\")"
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"D:\\\\bcanteneur\\\\Documents\\\\GitHub\\\\coffee\\\\tools\\\\generate-icons.ps1\")",
+      "PowerShell(dotnet build --nologo -clp:NoSummary 2>&1)"
     ]
   }
 }

@@ -1,17 +1,35 @@
 namespace CoffeeTracker.Lib;
 
+/// <summary>
+/// Statut de dégazage à un instant T pour un café donné.
+/// </summary>
+/// <param name="Days">Nombre de jours depuis la torréfaction.</param>
+/// <param name="Zone">Identifiant CSS de la zone (too-fresh / filter-only / optimal / declining / past).</param>
+/// <param name="Label">Description longue affichée sous la jauge.</param>
+/// <param name="ShortLabel">Étiquette courte affichée à côté du compteur de jours.</param>
 public record DegassingStatus(int Days, string Zone, string Label, string ShortLabel);
 
+/// <summary>
+/// Calcul de la fenêtre de dégazage d'un café après torréfaction.
+/// Les seuils sont génériques (la vraie fenêtre dépend du niveau de torréfaction et de la
+/// densité du café) mais collent à 80% des cas en specialty coffee.
+/// </summary>
 public static class Degassing
 {
     // Generic degassing windows (varies in reality with roast level, density…)
-    //   0-3 days  : too fresh (red)
-    //   4-6 days  : filter ok, espresso encore jeune (yellow)
-    //   7-21 days : fenêtre optimale (green)
-    //   22-35 days: encore bon, sur le déclin (yellow)
-    //   36+ days  : au-delà du pic (red)
+    //   0-3 days  : trop frais (zone rouge)
+    //   4-6 days  : filter ok, espresso encore jeune (zone jaune)
+    //   7-21 days : fenêtre optimale (zone verte)
+    //   22-35 days: encore bon, sur le déclin (zone jaune)
+    //   36+ days  : au-delà du pic (zone rouge)
+
+    /// <summary>Plage maximale affichée sur la timeline (utilisée pour calibrer la jauge UI).</summary>
     public const int MaxDays = 42;
 
+    /// <summary>
+    /// Calcule le statut de dégazage pour une <paramref name="roastDate"/> donnée.
+    /// Renvoie null si la date est manquante ou dans le futur (clock skew, faute de saisie).
+    /// </summary>
     public static DegassingStatus? Compute(DateOnly? roastDate)
     {
         if (roastDate is null) return null;
@@ -20,6 +38,7 @@ public static class Degassing
         return new DegassingStatus(days, ZoneFor(days), LongLabelFor(days), ShortLabelFor(days));
     }
 
+    /// <summary>Zone catégorielle (utilisée pour piloter une couleur ou un style).</summary>
     public static string ZoneFor(int days) => days switch
     {
         <= 3 => "too-fresh",

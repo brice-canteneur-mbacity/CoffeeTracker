@@ -1,3 +1,9 @@
+@*
+    CRUD Shop (lieu). N'édite PAS les visites — pour ça voir VisitForm.razor.
+    En mode création : bouton « Rechercher en ligne » → PlaceSearchDialog (Google ou OSM)
+    qui pré-remplit nom/ville/pays/adresse/lat/long/ExternalPlaceId.
+    Après création, redirige vers /shops/{newId} (le détail) — l'utilisateur ajoute les visites de là.
+*@
 @page "/shops/new"
 @page "/shops/{Id:int}/edit"
 @inject CoffeeDb Db

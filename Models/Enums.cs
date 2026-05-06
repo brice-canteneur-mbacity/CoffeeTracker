@@ -2,6 +2,14 @@ using System.ComponentModel;
 
 namespace CoffeeTracker.Models;
 
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// Enums du domaine. Les valeurs entières sont stockées telles quelles dans IndexedDB :
+// NE JAMAIS RÉORDONNER les membres existants. Les nouvelles valeurs doivent être ajoutées
+// à la fin avec une valeur explicite. Le libellé d'affichage français vient du
+// [Description(...)] et est résolu via EnumExtensions.GetLabel().
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+/// <summary>Process d'élaboration du café vert (lavage, fermentation, etc.).</summary>
 public enum Process
 {
     [Description("Lavé")] Washed,
@@ -12,6 +20,7 @@ public enum Process
     [Description("Autre")] Other
 }
 
+/// <summary>Niveau de torréfaction du café.</summary>
 public enum RoastLevel
 {
     [Description("Clair")] Light,
@@ -21,9 +30,27 @@ public enum RoastLevel
     [Description("Foncé")] Dark
 }
 
+/// <summary>Type de lait ajouté à un brew ou à une visite (null sur le modèle = sans lait).</summary>
+public enum MilkType
+{
+    [Description("Entier")] Whole = 0,
+    [Description("Demi-écrémé")] SemiSkimmed = 1,
+    [Description("Écrémé")] Skimmed = 2,
+    [Description("Sans lactose")] LactoseFree = 3,
+    [Description("Avoine")] Oat = 4,
+    [Description("Amande")] Almond = 5,
+    [Description("Soja")] Soy = 6,
+    [Description("Coco")] Coconut = 7,
+    [Description("Riz")] Rice = 8,
+    [Description("Autre")] Other = 9
+}
+
+/// <summary>
+/// Méthode de décaféination. Renseignée seulement si <see cref="Coffee.IsDecaf"/> est true.
+/// Les méthodes "Water" sont sans solvant chimique, EA est organique, MC est interdit dans certains pays.
+/// </summary>
 public enum DecafProcess
 {
-    // NOTE: ne pas réordonner — les valeurs entières sont stockées dans IndexedDB.
     [Description("Swiss Water (sans solvant)")] SwissWater = 0,
     [Description("Mountain Water (Mexique)")] MountainWater = 1,
     [Description("CO₂ supercritique")] Co2 = 2,
@@ -32,10 +59,12 @@ public enum DecafProcess
     [Description("Autre / Inconnu")] Other = 5
 }
 
+/// <summary>
+/// Type de matériel. Mélange préparateurs (Espresso, V60…) et accessoires (Grinder, Kettle, Scale).
+/// Utiliser <see cref="MachineTypeOrder.IsBrewer"/> pour distinguer.
+/// </summary>
 public enum MachineType
 {
-    // NOTE: ne pas réordonner — les valeurs entières sont stockées telles quelles dans IndexedDB.
-    // Les nouvelles valeurs doivent être appended à la fin pour préserver les données existantes.
     [Description("Machine espresso")] Espresso = 0,
     [Description("Moulin")] Grinder = 1,
     [Description("Bouilloire")] Kettle = 2,
@@ -93,6 +122,10 @@ public static class MachineTypeOrder
     };
 }
 
+/// <summary>
+/// Méthode de préparation d'un brew. Mappée vers un <see cref="MachineType"/> attendu via
+/// <see cref="MachineTypeOrder.BrewerTypeFor"/> pour filtrer les machines proposées dans le formulaire.
+/// </summary>
 public enum BrewMethod
 {
     [Description("Espresso")] Espresso,
@@ -107,8 +140,13 @@ public enum BrewMethod
     [Description("Autre")] Other
 }
 
+/// <summary>Extensions de mapping pour récupérer le libellé français d'une valeur d'enum.</summary>
 public static class EnumExtensions
 {
+    /// <summary>
+    /// Renvoie le <see cref="DescriptionAttribute"/> associé à la valeur d'enum, ou son nom
+    /// .ToString() en fallback si l'attribut n'est pas posé.
+    /// </summary>
     public static string GetLabel(this Enum value)
     {
         var field = value.GetType().GetField(value.ToString());

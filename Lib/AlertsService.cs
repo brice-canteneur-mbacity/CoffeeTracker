@@ -4,8 +4,10 @@ using Microsoft.JSInterop;
 
 namespace CoffeeTracker.Lib;
 
+/// <summary>Niveau de sévérité d'un rappel — mappé vers MudBlazor Severity côté UI.</summary>
 public enum AlertSeverity { Info, Warning, Error }
 
+/// <summary>Rappel évalué : titre court + message + lien optionnel vers un café.</summary>
 public record CoffeeAlert(AlertSeverity Severity, string Title, string Message, int? CoffeeId);
 
 /// <summary>
@@ -17,6 +19,12 @@ public class AlertsService(CoffeeDb db, IJSRuntime js)
     private readonly CoffeeDb _db = db;
     private readonly IJSRuntime _js = js;
 
+    /// <summary>
+    /// Parcourt les cafés possédés non terminés et applique deux règles :
+    /// (1) stock ≤ 0 ou ≤ 30 g (en intégrant <see cref="Coffee.StockAdjustmentG"/>),
+    /// (2) jours depuis torréfaction &gt; 35 j (au-delà du pic de dégazage).
+    /// Les cafés terminés ou non possédés sont ignorés.
+    /// </summary>
     public async Task<List<CoffeeAlert>> EvaluateAsync()
     {
         var alerts = new List<CoffeeAlert>();
@@ -73,21 +81,29 @@ public class AlertsService(CoffeeDb db, IJSRuntime js)
         return alerts;
     }
 
+    // ─── Wrappers fins autour de l'API Notifications du navigateur (cf. notifications.js) ───
+
+    /// <summary>True si l'API Notifications est supportée par le navigateur.</summary>
     public async Task<bool> IsSupportedAsync()
         => await _js.InvokeAsync<bool>("coffeeNotifications.isSupported");
 
+    /// <summary>"granted" / "denied" / "default" — état actuel de la permission navigateur.</summary>
     public async Task<string> GetPermissionAsync()
         => await _js.InvokeAsync<string>("coffeeNotifications.permission");
 
+    /// <summary>Demande la permission au navigateur (peut afficher un prompt). Retourne true si "granted".</summary>
     public async Task<bool> RequestPermissionAsync()
         => await _js.InvokeAsync<bool>("coffeeNotifications.requestPermission");
 
+    /// <summary>Préférence utilisateur (localStorage) — indépendante de la permission navigateur.</summary>
     public async Task<bool> IsEnabledAsync()
         => await _js.InvokeAsync<bool>("coffeeNotifications.isEnabled");
 
+    /// <summary>Persiste la préférence utilisateur d'envoyer ou non des notifs système.</summary>
     public async Task SetEnabledAsync(bool enabled)
         => await _js.InvokeVoidAsync("coffeeNotifications.setEnabled", enabled);
 
+    /// <summary>Affiche une notification système. À n'appeler que si <see cref="IsEnabledAsync"/> et <see cref="GetPermissionAsync"/>=="granted".</summary>
     public async Task ShowSystemAsync(CoffeeAlert alert)
         => await _js.InvokeVoidAsync("coffeeNotifications.show", alert.Title, alert.Message);
 }

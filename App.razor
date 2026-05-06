@@ -1,3 +1,8 @@
+@*
+    Composant racine : pose les providers globaux (theme/popover/dialog/snackbar),
+    puis monte le router. Initialise le ThemeService et le SyncService au démarrage
+    (le SyncService déclenche un pull GitHub Gist en arrière-plan si configuré).
+*@
 @using MudBlazor
 @implements IDisposable
 @inject ThemeService Theme

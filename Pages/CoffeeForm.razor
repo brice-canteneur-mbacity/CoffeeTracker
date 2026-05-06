@@ -1,3 +1,10 @@
+@*
+    CRUD café. Trois modes selon les flags :
+    - IsOwned = true  → sac avec poids/prix/dates (achats trackés, stock calculé)
+    - IsOwned = false → café simplement dégusté (champs achats masqués)
+    - IsBlend = true  → masque les champs origine et affiche un champ Composition libre
+    Un sélecteur DecafProcess apparaît conditionnellement quand IsDecaf est coché.
+*@
 @page "/coffees/new"
 @page "/coffees/{Id:int}/edit"
 @inject CoffeeDb Db

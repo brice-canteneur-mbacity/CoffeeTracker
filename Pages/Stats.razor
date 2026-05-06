@@ -1,3 +1,12 @@
+@*
+    Page de stats agrégées. Sections :
+    - Compteurs : cafés, brews, shops (entités), visites
+    - Activité : 7j / 30j + heatmap calendrier 13 dernières semaines (HeatmapCalendar)
+    - Méthode favorite, origine la + achetée, meilleur café (≥ 2 brews)
+    - Notes moyennes (brews, visites)
+    - Budget : total dépensé en sacs, coût moyen par tasse, total shops
+    - Répartition par méthode (barres horizontales)
+*@
 @page "/stats"
 @inject CoffeeDb Db
 @inject NavigationManager Nav

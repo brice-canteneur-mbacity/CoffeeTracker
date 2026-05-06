@@ -34,9 +34,12 @@
                     Severity.Info);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Échec migration ne doit pas bloquer le rendu — l'utilisateur retentera au reload.
+            // Échec migration : affichage explicite pour que l'utilisateur puisse réagir
+            // (Réglages → « Reconstruire les shops » force un nouveau passage).
+            Snackbar.Add($"Migration shops échouée : {ex.Message}", Severity.Error,
+                opt => opt.RequireInteraction = true);
         }
 
         try

@@ -2,8 +2,14 @@ using MudBlazor;
 
 namespace CoffeeTracker;
 
+/// <summary>
+/// Palette MudBlazor light + dark de l'app. Les couleurs sont alignées sur les variables CSS
+/// <c>--coffee-*</c> définies dans <c>wwwroot/css/app.css</c> — toute modification ici doit
+/// se refléter là-bas pour garder l'UI cohérente.
+/// </summary>
 public static class CoffeeTheme
 {
+    /// <summary>Thème unique de l'app, exploité par <c>App.razor</c>.</summary>
     public static readonly MudTheme Default = new()
     {
         PaletteLight = new PaletteLight

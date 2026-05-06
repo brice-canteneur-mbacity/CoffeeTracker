@@ -1,3 +1,11 @@
+@*
+    CRUD d'une visite (CoffeeShopVisit). Toujours rattachée à un Shop existant.
+    Routes :
+    - /shops/{ShopId}/visits/new : nouvelle visite à un shop existant
+    - /visits/{Id}/edit          : édition d'une visite (le shop est lu via la FK)
+    Le champ « Café » est résolu en FK Coffee à la sauvegarde (cf. ResolveCoffeeReferenceAsync) :
+    match exact → lien direct ; pas de match → auto-création d'un café « dégusté ».
+*@
 @page "/shops/{ShopId:int}/visits/new"
 @page "/visits/{Id:int}/edit"
 @inject CoffeeDb Db
@@ -113,6 +121,14 @@ else
                     <MudText Typo="Typo.caption" Class="mud-text-secondary pa-2">Aucun match — tape pour saisir un nouveau café.</MudText>
                 </NoItemsTemplate>
             </MudAutocomplete>
+            <MudSelect T="MilkType?" @bind-Value="_model.Milk"
+                       Label="Lait (optionnel)" Variant="Variant.Outlined" Clearable="true" Class="mt-3">
+                <MudSelectItem T="MilkType?" Value="@((MilkType?)null)">— Sans lait —</MudSelectItem>
+                @foreach (var m in Enum.GetValues<MilkType>())
+                {
+                    <MudSelectItem T="MilkType?" Value="@m">@m.GetLabel()</MudSelectItem>
+                }
+            </MudSelect>
             <MudGrid Spacing="2" Class="mt-1">
                 <MudItem xs="8"><MudNumericField T="decimal?" @bind-Value="_model.Price" Label="Prix" Variant="Variant.Outlined" Format="0.##" Culture="@_inv" Min="0m" /></MudItem>
                 <MudItem xs="4"><MudTextField @bind-Value="_model.Currency" Label="Devise" Variant="Variant.Outlined" /></MudItem>

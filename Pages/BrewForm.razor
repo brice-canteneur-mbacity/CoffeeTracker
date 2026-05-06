@@ -1,3 +1,13 @@
+@*
+    CRUD brew. Trois modes d'arrivée :
+    - /brews/new                    → nouveau brew vide (ou pré-rempli avec ?coffeeId=X)
+    - /brews/new?fromBrewId=X       → duplication : copie la recette de X, date/heure = NOW
+    - /brews/{Id}/edit              → édition d'un brew existant
+    Tout l'init param-dépendant est dans OnParametersSetAsync (et pas OnInitializedAsync) car Blazor
+    réutilise l'instance entre les routes /brews/{Id}/edit et /brews/new (même @page racine).
+    Le yield est auto-calculé à partir de Dose × Ratio cible. Les machines proposées sont
+    filtrées selon la méthode du brew (cf. MachineTypeOrder.BrewerTypeFor).
+*@
 @page "/brews/new"
 @page "/brews/{Id:int}/edit"
 @inject CoffeeDb Db
@@ -135,6 +145,16 @@
                     <MudTextField @bind-Value="_model.GrindSize" Label="Mouture"
                                   Variant="Variant.Outlined" Placeholder="ex : Niche 15 ; medium-fine" />
                 </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="MilkType?" @bind-Value="_model.Milk"
+                               Label="Lait (optionnel)" Variant="Variant.Outlined" Clearable="true">
+                        <MudSelectItem T="MilkType?" Value="@((MilkType?)null)">— Sans lait —</MudSelectItem>
+                        @foreach (var m in Enum.GetValues<MilkType>())
+                        {
+                            <MudSelectItem T="MilkType?" Value="@m">@m.GetLabel()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
             </MudGrid>
         </MudPaper>
 
@@ -228,18 +248,46 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Pour un brew on ne propose que les cafés possédés (avec stock potentiel) —
+        // Charges qui ne dépendent pas des paramètres de route — une seule fois.
+        // Pour un brew on ne propose que les cafés possédés (avec stock potentiel) ;
         // les cafés « dégustés » ne se brassent pas à la maison.
         var allCoffees = await Db.Coffees.OrderBy(nameof(Coffee.CreatedAt)).Reverse().ToList();
         _coffees = allCoffees.Where(c => c.IsOwned).ToList();
-        if (CoffeeId is not null) _model.CoffeeId = CoffeeId.Value;
 
         var allMachines = await Db.Machines.ToCollection().ToList();
         _allBrewers = allMachines.Where(m => m.Type.IsBrewer()).ToList();
         _grinders = allMachines.Where(m => m.Type == MachineType.Grinder).ToList();
+    }
 
-        if (!IsEdit && FromBrewId is not null)
+    protected override async Task OnParametersSetAsync()
+    {
+        // ─── Reset complet à chaque changement de paramètres ───
+        // Indispensable car Blazor réutilise l'instance du composant entre
+        // /brews/{Id}/edit et /brews/new (même @page racine), donc les
+        // field-initializers (_model = new(), _date = Today, _time = Now)
+        // ne sont PAS rejoués. Sans ce reset, la date/heure et le modèle
+        // du brew précédent persistent quand on clique « Refaire ».
+        var now = DateTime.Now;
+        _model = new();
+        _date = now.Date;
+        _time = now.TimeOfDay;
+        _targetRatio = null;
+
+        if (IsEdit)
         {
+            var b = await Db.Brews.Get(Id!.Value);
+            if (b is not null)
+            {
+                _model = b;
+                _date = b.Date.Date;
+                _time = b.Date.TimeOfDay;
+                _targetRatio = ParseRatio(_model.Ratio);
+            }
+        }
+        else if (FromBrewId is not null)
+        {
+            // Refaire un brew : copie la recette mais garde la date/heure « maintenant »
+            // (un redo est un nouvel événement à l'instant t, pas une copie temporelle).
             var src = await Db.Brews.Get(FromBrewId.Value);
             if (src is not null)
             {
@@ -252,23 +300,13 @@
                 _model.Notes = src.Notes;
                 _model.BrewerMachineId = src.BrewerMachineId;
                 _model.GrinderId = src.GrinderId;
+                _model.Milk = src.Milk;
                 _targetRatio = ParseRatio(_model.Ratio);
             }
         }
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (IsEdit)
+        else if (CoffeeId is not null)
         {
-            var b = await Db.Brews.Get(Id!.Value);
-            if (b is not null)
-            {
-                _model = b;
-                _date = b.Date.Date;
-                _time = b.Date.TimeOfDay;
-                _targetRatio = ParseRatio(_model.Ratio);
-            }
+            _model.CoffeeId = CoffeeId.Value;
         }
     }
 

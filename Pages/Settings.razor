@@ -1,3 +1,13 @@
+@*
+    Page Réglages. Sections :
+    - Apparence : préférence light/dark/system (ThemeService)
+    - Sync GitHub Gist : configuration du PAT, sync manuelle, déconnexion (SyncService)
+    - Sauvegarde locale : export/import JSON (CoffeeBackup, version 4)
+    - Notifications : permission + préférence utilisateur (AlertsService)
+    - Recherche shops : clé Google API (optionnelle, sinon fallback OSM)
+    - Diagnostic & maintenance : état migrations + bouton manuel « Reconstruire les shops »
+    - Zone dangereuse : tout effacer
+*@
 @page "/settings"
 @using System.Text.Json
 @using System.Text.Json.Serialization
@@ -10,6 +20,7 @@
 @inject ThemeService Theme
 @inject SyncService Sync
 @inject AlertsService Alerts
+@inject MigrationService Migrations
 
 <PageTitle>Réglages</PageTitle>
 
@@ -172,6 +183,57 @@
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
+        <MudText Typo="Typo.h6" Class="mb-1">Diagnostic & maintenance</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            Si tes anciennes visites n'apparaissent pas dans la liste des shops, lance un diagnostic
+            puis « Reconstruire les shops » pour relancer la migration.
+        </MudText>
+
+        @if (_diag is not null)
+        {
+            <MudPaper Class="pa-3 mb-3" Elevation="0" Style="background: var(--coffee-surface-soft);">
+                <MudText Typo="Typo.caption" Class="d-block">
+                    <strong>Visites :</strong> @_diag.VisitCount ·
+                    <strong>Shops :</strong> @_diag.ShopCount ·
+                    <strong>Visites non reliées :</strong> @_diag.PendingVisitCount
+                    @if (_diag.OrphanVisitCount > 0)
+                    {
+                        <span> · <strong>Orphelines :</strong> @_diag.OrphanVisitCount</span>
+                    }
+                </MudText>
+                @if (_diag.PendingPreview.Count > 0)
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">
+                        À migrer (aperçu) :
+                        @foreach (var p in _diag.PendingPreview)
+                        {
+                            <span class="d-block ml-2">• @p</span>
+                        }
+                    </MudText>
+                }
+            </MudPaper>
+        }
+
+        <div class="d-flex flex-wrap" style="gap:8px;">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="DiagnoseAsync" Disabled="_busy">
+                Diagnostiquer
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Build"
+                       OnClick="RebuildShopsAsync" Disabled="_busy">
+                Reconstruire les shops
+            </MudButton>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_migrationStatus))
+        {
+            <MudText Typo="Typo.caption" Class="mt-2 d-block" Style="white-space:pre-wrap;">@_migrationStatus</MudText>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="0">
         <MudText Typo="Typo.h6" Class="mb-1">Zone dangereuse</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
             Supprime toutes les données de l'application (cafés, brews, visites). Irréversible.
@@ -192,6 +254,8 @@
     private bool _notifSupported;
     private bool _notifEnabled;
     private string _notifPermission = "default";
+    private MigrationDiagnostic? _diag;
+    private string? _migrationStatus;
 
     protected override async Task OnInitializedAsync()
     {
@@ -408,6 +472,55 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Erreur import : {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DiagnoseAsync()
+    {
+        _busy = true;
+        _migrationStatus = null;
+        try
+        {
+            _diag = await Migrations.DiagnoseAsync();
+        }
+        catch (Exception ex)
+        {
+            _migrationStatus = $"❌ Erreur diagnostic : {ex.Message}\n{ex.GetType().Name}";
+            Snackbar.Add("Diagnostic en échec — voir le message ci-dessous", Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RebuildShopsAsync()
+    {
+        _busy = true;
+        _migrationStatus = null;
+        try
+        {
+            var report = await Migrations.RunManualAsync();
+            _diag = await Migrations.DiagnoseAsync();
+            if (report.HasChanges)
+            {
+                _migrationStatus = $"✓ {report.ShopsCreated} shop(s) créé(s), {report.VisitsLinked} visite(s) reliée(s).";
+                Snackbar.Add(_migrationStatus, Severity.Success);
+            }
+            else
+            {
+                _migrationStatus = "Rien à migrer (toutes les visites sont déjà reliées à un shop).";
+                Snackbar.Add(_migrationStatus, Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            _migrationStatus = $"❌ Erreur migration : {ex.Message}\n{ex.GetType().Name}\n{ex.StackTrace}";
+            Snackbar.Add("Migration en échec — voir le détail dans la section Diagnostic", Severity.Error);
         }
         finally
         {

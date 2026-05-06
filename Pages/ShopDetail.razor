@@ -1,3 +1,8 @@
+@*
+    Détail d'un Shop : ses infos (adresse, coords, photo, notes) + liste de toutes les visites
+    qui le référencent. Bouton « + Visite » → /shops/{id}/visits/new.
+    La suppression cascade : on supprime d'abord les visites, puis le shop.
+*@
 @page "/shops/{Id:int}"
 @inject CoffeeDb Db
 @inject NavigationManager Nav
@@ -102,6 +107,7 @@ else
                                         @Format.Date(v.Date)
                                         @{ var coffeeLabel = CoffeeLabel(v); }
                                         @if (!string.IsNullOrEmpty(coffeeLabel)) { <span> · @coffeeLabel</span> }
+                                        @if (v.Milk is MilkType vmilk) { <span> · 🥛 @vmilk.GetLabel()</span> }
                                         @if (v.Price is decimal price) { <span> · @Format.Price(price, v.Currency)</span> }
                                     </MudText>
                                 </div>

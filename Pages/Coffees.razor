@@ -1,3 +1,11 @@
+@*
+    Liste de tous les cafés répartis en 3 onglets :
+    - En cours      : IsOwned = true,  FinishedAt = null
+    - Terminés      : IsOwned = true,  FinishedAt != null
+    - Dégustés      : IsOwned = false (cafés bus en boutique uniquement)
+    Recherche full-text sur roaster / nom / pays / variété / process / notes.
+    Note : le @page "/" sert aussi de homepage de l'app.
+*@
 @page "/"
 @page "/coffees"
 @inject CoffeeDb Db
