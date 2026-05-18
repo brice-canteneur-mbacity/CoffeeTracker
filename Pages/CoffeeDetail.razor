@@ -209,7 +209,7 @@ else
             {
                 <div class="d-flex align-center mb-3" style="gap:8px;">
                     <span class="mud-text-secondary" style="font-size:14px;">@Loc.T("coffeedetail.brews_average")</span>
-                    <StarRating Value="@((int)Math.Round(_brews.Average(b => b.Rating)))" ReadOnly="true" Size="Size.Small" />
+                    <StarRating Value="@_brews.Average(b => b.Rating)" ReadOnly="true" Size="Size.Small" />
                     <span class="mud-text-secondary" style="font-size:14px;">(@_brews.Average(b => b.Rating).ToString("0.0"))</span>
                 </div>
             }

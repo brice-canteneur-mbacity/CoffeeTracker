@@ -97,7 +97,7 @@
             <div class="d-flex align-center justify-space-between">
                 <div>
                     <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("brewform.section_score")</MudText>
-                    <StarRating Value="@_model.Rating" ValueChanged="@((int v) => _model.Rating = v)" Size="Size.Large" />
+                    <StarRating Value="@_model.Rating" ValueChanged="@((decimal v) => _model.Rating = v)" Size="Size.Large" />
                 </div>
                 <MudIconButton
                     Icon="@(_model.IsFavorite ? Icons.Material.Filled.Favorite : Icons.Material.Filled.FavoriteBorder)"

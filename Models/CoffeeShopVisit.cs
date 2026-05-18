@@ -35,7 +35,8 @@ public class CoffeeShopVisit
     public string? CoffeeOrigin { get; set; }
 
     public string? Notes { get; set; }
-    public int Rating { get; set; }
+    /// <summary>Note de 0 à 5 ⭐, par pas de 0,5 (demi-étoiles autorisées).</summary>
+    public decimal Rating { get; set; }
     public decimal? Price { get; set; }
     public string? Currency { get; set; } = "EUR";
     public string? PhotoDataUrl { get; set; }

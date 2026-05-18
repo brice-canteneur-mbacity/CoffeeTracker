@@ -82,7 +82,7 @@ else
             {
                 <div class="d-flex align-center mb-3" style="gap:8px;">
                     <span class="mud-text-secondary" style="font-size:14px;">@Loc.T("shopdetail.visits_average")</span>
-                    <StarRating Value="@((int)Math.Round(_visits.Average(v => v.Rating)))" ReadOnly="true" Size="Size.Small" />
+                    <StarRating Value="@_visits.Average(v => v.Rating)" ReadOnly="true" Size="Size.Small" />
                     <span class="mud-text-secondary" style="font-size:14px;">(@_visits.Average(v => v.Rating).ToString("0.0"))</span>
                 </div>
                 <MudList T="CoffeeShopVisit" Class="pa-0">

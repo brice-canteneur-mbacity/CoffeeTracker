@@ -80,14 +80,14 @@ else
             <div class="detail-row">
                 <span class="detail-label">@Loc.T("stats.label_avg_brew")</span>
                 <span class="d-flex align-center" style="gap:8px;">
-                    <StarRating Value="@((int)Math.Round(_avgBrewRating))" ReadOnly="true" Size="Size.Small" />
+                    <StarRating Value="@((decimal)_avgBrewRating)" ReadOnly="true" Size="Size.Small" />
                     <span class="mud-text-secondary" style="font-size:14px;">@(_avgBrewRating > 0 ? _avgBrewRating.ToString("0.0") : "—")</span>
                 </span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">@Loc.T("stats.label_avg_visit")</span>
                 <span class="d-flex align-center" style="gap:8px;">
-                    <StarRating Value="@((int)Math.Round(_avgShopRating))" ReadOnly="true" Size="Size.Small" />
+                    <StarRating Value="@((decimal)_avgShopRating)" ReadOnly="true" Size="Size.Small" />
                     <span class="mud-text-secondary" style="font-size:14px;">@(_avgShopRating > 0 ? _avgShopRating.ToString("0.0") : "—")</span>
                 </span>
             </div>
@@ -100,7 +100,7 @@ else
                 <MudText Class="mt-1" Style="font-weight:600;">@_topCoffee.Coffee.Name</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">@_topCoffee.Coffee.Roaster</MudText>
                 <div class="d-flex align-center mt-2" style="gap:8px;">
-                    <StarRating Value="@((int)Math.Round(_topCoffee.Avg))" ReadOnly="true" Size="Size.Small" />
+                    <StarRating Value="@((decimal)_topCoffee.Avg)" ReadOnly="true" Size="Size.Small" />
                     <span class="mud-text-secondary" style="font-size:12px;">@Loc.T("stats.top_coffee_score", _topCoffee.Avg.ToString("0.0"), _topCoffee.Count)</span>
                 </div>
             </MudPaper>
@@ -186,9 +186,9 @@ else
             _topOriginLabel = Loc.T("common.none");
 
         if (_brews.Count > 0)
-            _avgBrewRating = _brews.Average(b => b.Rating);
+            _avgBrewRating = _brews.Average(b => (double)b.Rating);
         if (_visits.Count > 0)
-            _avgShopRating = _visits.Average(v => v.Rating);
+            _avgShopRating = _visits.Average(v => (double)v.Rating);
 
         var byCoffee = _brews
             .GroupBy(b => b.CoffeeId)

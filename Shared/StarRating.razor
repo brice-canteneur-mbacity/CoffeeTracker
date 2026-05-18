@@ -1,36 +1,107 @@
 @*
-    Wrapper du MudRating de MudBlazor avec la palette ambre (étoiles non sélectionnées en
-    coffee-300 #d4b487, sélectionnées en orange #f59e0b). Mode lecture seule via ReadOnly
-    pour les listes / cartes ; ValueChanged pour les formulaires.
-*@
+    Composant note 0–5 ⭐ par pas de 0,5 (demi-étoiles). Chaque étoile a deux zones de clic
+    (moitié gauche = 0,5 / moitié droite = 1,0). Cliquer sur la valeur courante remet à zéro
+    (parité de comportement avec MudRating). Mode lecture seule via ReadOnly.
 
-<MudRating SelectedValue="Value"
-           SelectedValueChanged="OnChanged"
-           ReadOnly="ReadOnly"
-           Size="@Size"
-           MaxValue="5"
-           FullIcon="@Icons.Material.Filled.Star"
-           EmptyIcon="@Icons.Material.Filled.StarBorder"
-           Class="coffee-rating" />
+    La valeur affichée est snappée au demi-étoile le plus proche (utile pour les moyennes en
+    decimal arbitraire). Palette ambre alignée sur le thème : étoile vide en coffee-300, étoile
+    pleine/demi en orange #f59e0b.
+*@
+<div class="coffee-rating coffee-rating-@SizeClass" role="@(ReadOnly ? "img" : "radiogroup")"
+     aria-label="@AriaLabel">
+    @for (int i = 1; i <= 5; i++)
+    {
+        var idx = i;
+        var threshold = idx - 0.5m;
+        var isFull = Snapped >= idx;
+        var isHalf = !isFull && Snapped >= threshold;
+        <span class="cr-star">
+            <MudIcon Icon="@Icons.Material.Filled.StarBorder" Size="@Size" Class="cr-base" />
+            @if (isFull)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Star" Size="@Size" Class="cr-fill" />
+            }
+            else if (isHalf)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Star" Size="@Size" Class="cr-fill cr-half" />
+            }
+            @if (!ReadOnly)
+            {
+                <button type="button" class="cr-hit cr-hit-left"
+                        aria-label="@HitLabel(threshold)"
+                        @onclick="() => SetAsync(threshold)"
+                        @onclick:preventDefault="true"></button>
+                <button type="button" class="cr-hit cr-hit-right"
+                        aria-label="@HitLabel(idx)"
+                        @onclick="() => SetAsync(idx)"
+                        @onclick:preventDefault="true"></button>
+            }
+        </span>
+    }
+</div>
 
 <style>
-    .coffee-rating .mud-rating-item .mud-icon-root {
-        color: #d4b487 !important;
+    .coffee-rating {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        line-height: 0;
     }
-    .coffee-rating .mud-rating-item.mud-selected .mud-icon-root {
-        color: #f59e0b !important;
+    .coffee-rating .cr-star {
+        position: relative;
+        display: inline-flex;
+        line-height: 0;
     }
+    .coffee-rating .cr-base {
+        color: #d4b487;
+    }
+    .coffee-rating .cr-fill {
+        position: absolute;
+        inset: 0;
+        color: #f59e0b;
+        pointer-events: none;
+    }
+    .coffee-rating .cr-fill.cr-half {
+        clip-path: inset(0 50% 0 0);
+    }
+    .coffee-rating .cr-hit {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        width: 50%;
+        background: transparent;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .coffee-rating .cr-hit-left { left: 0; }
+    .coffee-rating .cr-hit-right { right: 0; }
 </style>
 
 @code {
-    [Parameter] public int Value { get; set; }
-    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+    [Parameter] public decimal Value { get; set; }
+    [Parameter] public EventCallback<decimal> ValueChanged { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public Size Size { get; set; } = Size.Medium;
+    [Parameter] public string? AriaLabel { get; set; }
 
-    private async Task OnChanged(int v)
+    private decimal Snapped => Math.Round(Value * 2m, MidpointRounding.AwayFromZero) / 2m;
+
+    private string SizeClass => Size switch
     {
-        Value = v;
-        if (ValueChanged.HasDelegate) await ValueChanged.InvokeAsync(v);
+        Size.Small => "sm",
+        Size.Large => "lg",
+        _ => "md"
+    };
+
+    private static string HitLabel(decimal v)
+        => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "/5";
+
+    private async Task SetAsync(decimal v)
+    {
+        var next = Snapped == v ? 0m : v;
+        Value = next;
+        if (ValueChanged.HasDelegate) await ValueChanged.InvokeAsync(next);
     }
 }
