@@ -138,10 +138,11 @@
                                      Format="0.#" Culture="@_userCulture" Min="0m" Immediate="true" />
                 </MudItem>
                 <MudItem xs="6">
-                    <MudTextField Value="@YieldDisplay"
-                                  Label="@Loc.T("brewform.field_yield")" Variant="Variant.Outlined"
-                                  ReadOnly="true"
-                                  HelperText="@YieldHint" />
+                    <MudNumericField T="decimal?" Value="_model.YieldG"
+                                     ValueChanged="OnYieldChanged"
+                                     Label="@Loc.T("brewform.field_yield")" Variant="Variant.Outlined"
+                                     Format="0.#" Culture="@_userCulture" Min="0m" Immediate="true"
+                                     HelperText="@YieldHint" />
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_model.GrindSize" Label="@Loc.T("brewform.field_grind")"
@@ -215,13 +216,11 @@
         ("1:17", 17m)
     };
 
-    private string YieldDisplay => _model.YieldG is decimal y ? y.ToString("0.#", _inv) : "—";
-
     private string? YieldHint
     {
         get
         {
-            if (_targetRatio is null) return Loc.T("brewform.yield_hint_no_ratio");
+            if (_targetRatio is null) return null;
             if (_model.DoseG is null or 0m) return Loc.T("brewform.yield_hint_no_dose");
             return Loc.T("brewform.yield_hint_auto", _model.Ratio ?? "");
         }
@@ -231,6 +230,7 @@
     {
         _targetRatio = value;
         _model.Ratio = label;
+        // Tapping a ratio chip is an explicit "snap yield to this target" — overrides any manual value.
         Recompute();
     }
 
@@ -240,15 +240,27 @@
         Recompute();
     }
 
+    private void OnYieldChanged(decimal? yield)
+    {
+        _model.YieldG = yield;
+        // Diverging from the auto-computed value = the user is overriding the ratio, so unselect the chip.
+        if (_targetRatio is decimal r && _model.DoseG is decimal d && d > 0m)
+        {
+            var auto = Math.Round(d * r, 1);
+            if (yield != auto)
+            {
+                _targetRatio = null;
+                _model.Ratio = null;
+            }
+        }
+    }
+
     private void Recompute()
     {
+        // Only auto-fill yield when a ratio chip is selected. Without a chip, the user owns the yield value.
         if (_targetRatio is decimal r && _model.DoseG is decimal d && d > 0m)
         {
             _model.YieldG = Math.Round(d * r, 1);
-        }
-        else
-        {
-            _model.YieldG = null;
         }
     }
 
