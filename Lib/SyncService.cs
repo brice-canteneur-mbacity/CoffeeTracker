@@ -257,6 +257,11 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
     }
 
     /// <summary>Tente de récupérer le contenu d'un Gist. Retourne null si 404 / vide / erreur réseau.</summary>
+    /// <remarks>
+    /// GitHub tronque le champ <c>content</c> à 1 Mo dans la réponse <c>GET /gists/{id}</c> et
+    /// expose un flag <c>truncated</c> + <c>raw_url</c> par fichier. Avec des photos en base64,
+    /// le backup dépasse rapidement 1 Mo, donc on bascule sur <c>raw_url</c> quand nécessaire.
+    /// </remarks>
     private async Task<CoffeeBackup?> TryFetchGistAsync(string id)
     {
         try
@@ -272,15 +277,37 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
 
             var body = await response.Content.ReadAsStringAsync();
             var gist = JsonSerializer.Deserialize<GistResponse>(body, ImportOptions);
-            var content = gist?.Files?.GetValueOrDefault(GistFilename)?.Content;
-            if (string.IsNullOrEmpty(content)) return null;
+            var file = gist?.Files?.GetValueOrDefault(GistFilename);
+            if (file is null) return null;
 
+            string? content;
+            if (file.Truncated && !string.IsNullOrEmpty(file.RawUrl))
+            {
+                content = await FetchRawAsync(file.RawUrl);
+            }
+            else
+            {
+                content = file.Content;
+            }
+
+            if (string.IsNullOrEmpty(content)) return null;
             return JsonSerializer.Deserialize<CoffeeBackup>(content, ImportOptions);
         }
         catch
         {
             return null;
         }
+    }
+
+    /// <summary>Récupère le contenu brut d'un fichier Gist via son raw_url (auth PAT requise).</summary>
+    private async Task<string?> FetchRawAsync(string rawUrl)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, rawUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Pat);
+        request.Headers.UserAgent.ParseAdd("CoffeeTracker");
+        var response = await _http.SendAsync(request);
+        if (!response.IsSuccessStatusCode) return null;
+        return await response.Content.ReadAsStringAsync();
     }
 
     /// <summary>Sync = pull + push (le pull en premier, le push ensuite si pull a réussi).</summary>
@@ -387,5 +414,9 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
     {
         public string? Filename { get; set; }
         public string? Content { get; set; }
+        // GitHub met truncated=true et tronque Content à 1 Mo ; raw_url donne le fichier complet.
+        public bool Truncated { get; set; }
+        [JsonPropertyName("raw_url")]
+        public string? RawUrl { get; set; }
     }
 }
