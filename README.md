@@ -174,7 +174,7 @@ coffee/
 │   └── BottomNav.razor             # 5 onglets (Cafés/Brews/Machines/Shops/Stats)
 ├── Shared/                         # Composants réutilisables
 │   ├── PageHeader.razor            # Header sticky + bouton sync visible partout + back
-│   ├── StarRating.razor            # Wrapper MudRating en couleur ambre
+│   ├── StarRating.razor            # Note 0–5 ⭐ par pas de 0,5 (palette ambre)
 │   ├── DetailRow.razor             # Ligne label/valeur dans les fiches
 │   ├── Counter.razor               # Petit indicateur stat
 │   ├── HeatmapCalendar.razor       # Calendrier 7×N type GitHub

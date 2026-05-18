@@ -41,8 +41,9 @@ public class CoffeeDb : Db<CoffeeDb>
     //   4   : ajout DecafProcess + StockAdjustmentG sur Coffee (champs nullables : pas de migration data)
     //   5   : extraction de Shop comme entité distincte (migration data dans MigrationService)
     //   6   : ajout MilkType (nullable) sur Brew et CoffeeShopVisit — pas de migration data
+    //   7   : Rating int → decimal sur Brew et CoffeeShopVisit (demi-étoiles) — pas de migration data
     public CoffeeDb(BlazorDexieOptions options)
-        : base("coffee-tracker", 6, Array.Empty<IDbVersion>(), options)
+        : base("coffee-tracker", 7, Array.Empty<IDbVersion>(), options)
     {
     }
 }

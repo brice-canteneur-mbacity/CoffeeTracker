@@ -27,8 +27,8 @@ public class Brew
     public string? GrindSize { get; set; }
     public string? Notes { get; set; }
 
-    /// <summary>0–5 ⭐.</summary>
-    public int Rating { get; set; }
+    /// <summary>Note de 0 à 5 ⭐, par pas de 0,5 (demi-étoiles autorisées).</summary>
+    public decimal Rating { get; set; }
     public bool IsFavorite { get; set; }
 
     /// <summary>FK optionnelle vers la <see cref="Machine"/> ayant produit le brew (filtrée par méthode).</summary>

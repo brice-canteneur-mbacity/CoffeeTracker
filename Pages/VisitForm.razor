@@ -139,7 +139,7 @@ else
 
         <MudPaper Class="pa-4" Elevation="0">
             <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("brewform.section_score")</MudText>
-            <StarRating Value="@_model.Rating" ValueChanged="@((int v) => _model.Rating = v)" Size="Size.Large" />
+            <StarRating Value="@_model.Rating" ValueChanged="@((decimal v) => _model.Rating = v)" Size="Size.Large" />
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">

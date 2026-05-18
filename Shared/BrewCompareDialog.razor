@@ -79,7 +79,7 @@
         Add(list, Loc.T("brewcompare.row_ratio"), BrewA.Ratio ?? "—", BrewB.Ratio ?? "—");
         Add(list, Loc.T("brewcompare.row_grind"), BrewA.GrindSize ?? "—", BrewB.GrindSize ?? "—");
         Add(list, Loc.T("brewcompare.row_milk"), BrewA.Milk?.GetLabel() ?? "—", BrewB.Milk?.GetLabel() ?? "—");
-        Add(list, Loc.T("brewcompare.row_score"), $"{BrewA.Rating}/5", $"{BrewB.Rating}/5");
+        Add(list, Loc.T("brewcompare.row_score"), FmtRating(BrewA.Rating), FmtRating(BrewB.Rating));
         Add(list, Loc.T("brewcompare.row_favorite"), BrewA.IsFavorite ? "❤" : "—", BrewB.IsFavorite ? "❤" : "—");
         Add(list, Loc.T("brewcompare.row_machine"), MachineName(BrewA.BrewerMachineId), MachineName(BrewB.BrewerMachineId));
         Add(list, Loc.T("brewcompare.row_grinder"), MachineName(BrewA.GrinderId), MachineName(BrewB.GrinderId));
@@ -92,6 +92,9 @@
 
     private static string FmtDose(decimal? v)
         => v is null ? "—" : $"{v.Value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)} g";
+
+    private static string FmtRating(decimal v)
+        => $"{v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}/5";
 
     private string MachineName(int? id)
     {

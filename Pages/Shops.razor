@@ -107,7 +107,7 @@ else
                             <MudText Style="font-weight:600;" Class="text-truncate">@a.Shop.Name</MudText>
                             @if (a.VisitCount > 0)
                             {
-                                <StarRating Value="@((int)Math.Round(a.AverageRating))" ReadOnly="true" Size="Size.Small" />
+                                <StarRating Value="@((decimal)a.AverageRating)" ReadOnly="true" Size="Size.Small" />
                             }
                         </div>
                         <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
@@ -200,7 +200,7 @@ else
             .Select(s =>
             {
                 var vs = visitsByShop.TryGetValue(s.Id, out var list) ? list : new List<CoffeeShopVisit>();
-                var avg = vs.Count > 0 ? vs.Average(v => v.Rating) : 0;
+                var avg = vs.Count > 0 ? vs.Average(v => (double)v.Rating) : 0;
                 var last = vs.Count > 0 ? vs.Max(v => v.Date) : (DateOnly?)null;
                 var photo = !string.IsNullOrEmpty(s.PhotoDataUrl)
                     ? s.PhotoDataUrl
