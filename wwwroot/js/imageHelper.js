@@ -60,5 +60,19 @@ window.coffeeImage = {
   bytesToCompressedDataUrl: async function (bytes, mime, maxSize, quality) {
     const blob = new Blob([bytes], { type: mime || 'image/jpeg' });
     return await this.toCompressedDataUrl(blob, maxSize, quality);
+  },
+
+  /**
+   * Re-encode an existing data URL (or any URL the browser can fetch) through the
+   * compression pipeline. Used by the "Recompress photos" maintenance action.
+   * @param {string} dataUrl
+   * @param {number} [maxSize]
+   * @param {number} [quality]
+   * @returns {Promise<string>}
+   */
+  recompressDataUrl: async function (dataUrl, maxSize, quality) {
+    const resp = await fetch(dataUrl);
+    const blob = await resp.blob();
+    return await this.toCompressedDataUrl(blob, maxSize, quality);
   }
 };
