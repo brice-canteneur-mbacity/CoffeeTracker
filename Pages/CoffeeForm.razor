@@ -213,7 +213,7 @@
             await stream.CopyToAsync(ms);
             var bytes = ms.ToArray();
             var dataUrl = await JS.InvokeAsync<string>("coffeeImage.bytesToCompressedDataUrl",
-                bytes, file.ContentType, 1024, 0.82);
+                bytes, file.ContentType);
             _model.PhotoDataUrl = dataUrl;
         }
         catch (Exception ex)
