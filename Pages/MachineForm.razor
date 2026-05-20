@@ -36,7 +36,7 @@
                     </div>
                 }
                 <MudStack Spacing="1">
-                    <InputFile id="machinePhotoInput" OnChange="OnPhotoSelectedAsync" accept="image/*" capture="environment" style="display:none;" />
+                    <InputFile id="machinePhotoInput" OnChange="OnPhotoSelectedAsync" accept="image/*" style="display:none;" />
                     <label for="machinePhotoInput" class="upload-button">
                         <MudIcon Icon="@Icons.Material.Filled.PhotoCamera" Size="Size.Small" />
                         <span>@(string.IsNullOrEmpty(_model.PhotoDataUrl) ? Loc.T("coffeeform.photo_add") : Loc.T("coffeeform.photo_change"))</span>
