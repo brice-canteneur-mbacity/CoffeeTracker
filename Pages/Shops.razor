@@ -229,7 +229,7 @@ else
                 shopName = a.Shop.Name,
                 city = a.Shop.City,
                 visitCount = a.VisitCount,
-                rating = a.VisitCount > 0 ? (int)Math.Round(a.AverageRating) : 0,
+                rating = a.VisitCount > 0 ? Math.Round(a.AverageRating, 1) : 0d,
                 latitude = a.Shop.Latitude,
                 longitude = a.Shop.Longitude,
                 lastVisitLabel = a.LastVisitDate is DateOnly d ? Format.Date(d) : null

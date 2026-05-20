@@ -18,9 +18,14 @@ window.coffeeMap = (function () {
     return '#d4b487';             // coffee-300 (no rating)
   }
 
+  // Note moyenne formatée au dixième selon la locale ("3,5" en FR, "3.5" en EN).
+  function formatRating(r) {
+    return r.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+
   function makeIcon(rating) {
     const color = markerColor(rating);
-    const label = rating > 0 ? rating : '';
+    const label = rating > 0 ? formatRating(rating) : '';
     return L.divIcon({
       className: 'coffee-marker',
       html: `<div class="coffee-marker-dot" style="background:${color};">${label}</div>`,
@@ -78,7 +83,12 @@ window.coffeeMap = (function () {
     for (const s of (visits || [])) {
       if (s.latitude == null || s.longitude == null) continue;
       const r = Number(s.rating) || 0;
-      const stars = r > 0 ? '★'.repeat(r) + '☆'.repeat(Math.max(0, 5 - r)) : '';
+      // Les étoiles affichées sont arrondies à l'entier le plus proche ; la note numérique
+      // au dixième est rendue juste à côté pour conserver la précision.
+      const rRounded = Math.round(r);
+      const stars = r > 0
+        ? `${'★'.repeat(rRounded)}${'☆'.repeat(Math.max(0, 5 - rRounded))} <span class="coffee-popup-stars-value">${formatRating(r)}</span>`
+        : '';
       const cityLine = s.city ? `<div class="coffee-popup-meta">${escapeHtml(s.city)}</div>` : '';
       const visitsCount = Number(s.visitCount) || 0;
       const visitsLine = visitsCount > 0
