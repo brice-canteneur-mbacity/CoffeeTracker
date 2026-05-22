@@ -47,7 +47,10 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        padding: 16px 0 12px 0;
+        /* iOS PWA en mode standalone : status-bar "black-translucent" laisse le contenu
+           passer sous la Dynamic Island / le notch. On pousse le contenu du header
+           sous la safe-area pour qu'il reste lisible. */
+        padding: calc(16px + env(safe-area-inset-top)) 0 12px 0;
         background: var(--header-bg);
         backdrop-filter: blur(8px);
     }
