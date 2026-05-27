@@ -12,7 +12,6 @@
 @inject NavigationManager Nav
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
-@inject SyncService Sync
 @inject LocalizationService Loc
 
 <PageTitle>@(_coffee?.Name ?? Loc.T("nav.coffees"))</PageTitle>
@@ -512,7 +511,6 @@ else
         _coffee.FinishedAt = _coffee.FinishedAt is null ? DateTime.UtcNow : null;
         _coffee.UpdatedAt = DateTime.UtcNow;
         await Db.Coffees.Put(_coffee);
-        Sync.RequestPush();
         Snackbar.Add(_coffee.FinishedAt is null ? Loc.T("coffeedetail.snack_reopened") : Loc.T("coffeedetail.snack_finished"), Severity.Success);
     }
 
@@ -531,7 +529,6 @@ else
         var related = await Db.Brews.Where(nameof(Brew.CoffeeId)).IsEqual(Id).PrimaryKeys();
         foreach (var bId in related) await Db.Brews.Delete(bId);
         await Db.Coffees.Delete(Id);
-        Sync.RequestPush();
         Snackbar.Add(Loc.T("coffeeform.snack_deleted"), Severity.Info);
         Nav.NavigateTo("coffees");
     }

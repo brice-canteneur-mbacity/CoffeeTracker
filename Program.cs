@@ -26,7 +26,7 @@ builder.Services.AddBlazorDexie();
 builder.Services.AddScoped<CoffeeDb>();              // Couche d'accès IndexedDB.
 builder.Services.AddScoped<PlaceSearchService>();    // Recherche shops Google/OSM (interop JS).
 builder.Services.AddScoped<ThemeService>();          // Light/dark + media query.
-builder.Services.AddScoped<SyncService>();           // GitHub Gist push/pull + debounced auto-push.
+builder.Services.AddScoped<SyncService>();           // GitHub Gist : sauvegarde/restauration manuelle (aucune sync auto).
 builder.Services.AddScoped<AlertsService>();         // Évaluation rappels (stock bas, dégazage).
 builder.Services.AddScoped<MigrationService>();      // Migrations data idempotentes au démarrage.
 builder.Services.AddScoped<LocalizationService>();   // i18n FR/EN/IT (chargement JSON dictionaries).

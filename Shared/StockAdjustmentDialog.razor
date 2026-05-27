@@ -1,6 +1,5 @@
 @inject CoffeeDb Db
 @inject ISnackbar Snackbar
-@inject SyncService Sync
 @inject LocalizationService Loc
 
 <MudDialog>
@@ -83,7 +82,6 @@
             Coffee.StockAdjustmentG = Math.Round(real - InitialWeight + SumBrewsG, 1);
             Coffee.UpdatedAt = DateTime.UtcNow;
             await Db.Coffees.Put(Coffee);
-            Sync.RequestPush();
             Snackbar.Add(Loc.T("stockdialog.snack_saved"), Severity.Success);
             MudDialog.Close(DialogResult.Ok(real));
         }

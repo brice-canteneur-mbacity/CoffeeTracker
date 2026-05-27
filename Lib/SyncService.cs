@@ -55,26 +55,9 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
             LastSync = ls;
         StateChanged?.Invoke();
 
-        if (!IsConfigured) return;
-
-        // Si on n'a pas de GistId localement, on cherche un Gist existant dans le compte
-        // (cas typique : nouveau navigateur où on vient de saisir le PAT).
-        if (string.IsNullOrEmpty(GistId))
-        {
-            var found = await FindExistingGistAsync();
-            if (!string.IsNullOrEmpty(found))
-            {
-                GistId = found;
-                await SetItem(GistIdKey, found);
-                StateChanged?.Invoke();
-            }
-        }
-
-        // Auto-pull si on a maintenant un GistId.
-        if (!string.IsNullOrEmpty(GistId))
-        {
-            _ = PullAsync();
-        }
+        // Aucune synchro automatique au démarrage : ni pull (qui pourrait modifier le local),
+        // ni découverte réseau du Gist. Tout passe par le bouton « Synchroniser » (manuel),
+        // qui retrouve/crée le Gist au besoin via SyncAsync.
     }
 
     /// <summary>
@@ -237,11 +220,25 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
                 return false;
             }
 
-            await ApplyBackupAsync(data);
+            // Garde anti-perte : on ne laisse JAMAIS une sauvegarde distante vide écraser des
+            // données locales. Si le distant est vide alors qu'on a des données ici, on ignore le
+            // pull (le prochain push restaurera le cloud à partir du local).
+            var local = await BuildBackupAsync();
+            var localCount = CountRecords(local);
+            if (CountRecords(data) == 0 && localCount > 0)
+            {
+                LastInfo = "Sauvegarde distante vide ignorée — données locales préservées.";
+                return true;
+            }
+
+            // Cliché de sécurité du local AVANT d'appliquer le distant (réutilise le backup déjà construit).
+            await CaptureSnapshotAsync("avant pull", local);
+
+            var merged = await MergeBackupAsync(data);
 
             LastSync = DateTime.UtcNow;
             await SetItem(LastSyncKey, LastSync.Value.ToString("O"));
-            LastInfo = $"Pull OK ({data.Coffees?.Count ?? 0} cafés, {data.Brews?.Count ?? 0} brews, {data.Shops?.Count ?? 0} shops, {data.ShopVisits?.Count ?? 0} visites, {data.Machines?.Count ?? 0} machines)";
+            LastInfo = $"Pull OK ({merged} enreg. fusionnés sans perte ; local : {localCount})";
             return true;
         }
         catch (Exception ex)
@@ -335,34 +332,6 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         return await PushAsync();
     }
 
-    /// <summary>
-    /// Demande un push différé (debounced). Plusieurs appels rapprochés sont coalescés
-    /// en un seul push après <paramref name="delayMs"/> ms d'inactivité. Fire-and-forget.
-    /// </summary>
-    public void RequestPush(int delayMs = 3000)
-    {
-        if (!IsConfigured) return;
-        _pendingPush?.Cancel();
-        var cts = new CancellationTokenSource();
-        _pendingPush = cts;
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(delayMs, cts.Token);
-                await PushAsync();
-            }
-            catch (OperationCanceledException) { /* coalescé */ }
-            catch (Exception ex)
-            {
-                LastError = $"Auto-push : {ex.Message}";
-                StateChanged?.Invoke();
-            }
-        });
-    }
-
-    private CancellationTokenSource? _pendingPush;
-
     private async Task<CoffeeBackup> BuildBackupAsync() => new()
     {
         Version = 4,
@@ -374,21 +343,155 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         Machines = await _db.Machines.ToCollection().ToList()
     };
 
-    private async Task ApplyBackupAsync(CoffeeBackup data)
+    /// <summary>
+    /// Fusionne un backup distant dans le stockage local SANS jamais effacer d'enregistrements
+    /// locaux. Chaque enregistrement distant est inséré ou met à jour celui de même Id ; un
+    /// enregistrement local absent du distant est conservé. Sur conflit (même Id des deux côtés),
+    /// le plus récent gagne (horodatage UpdatedAt si présent, sinon CreatedAt).
+    /// Retourne le nombre d'enregistrements distants pris en compte.
+    /// </summary>
+    private async Task<int> MergeBackupAsync(CoffeeBackup data)
     {
-        await _db.Coffees.Clear();
-        await _db.Brews.Clear();
-        await _db.ShopVisits.Clear();
-        await _db.Shops.Clear();
-        await _db.Machines.Clear();
-
-        foreach (var c in data.Coffees ?? new()) await _db.Coffees.Put(c);
-        foreach (var b in data.Brews ?? new()) await _db.Brews.Put(b);
-        foreach (var s in data.Shops ?? new()) await _db.Shops.Put(s);
-        foreach (var v in data.ShopVisits ?? new()) await _db.ShopVisits.Put(v);
-        foreach (var m in data.Machines ?? new()) await _db.Machines.Put(m);
+        var n = 0;
+        n += await MergeStoreAsync(_db.Coffees, data.Coffees, c => c.UpdatedAt);
+        n += await MergeStoreAsync(_db.Brews, data.Brews, b => b.CreatedAt);
+        n += await MergeStoreAsync(_db.Shops, data.Shops, s => s.UpdatedAt);
+        n += await MergeStoreAsync(_db.ShopVisits, data.ShopVisits, v => v.CreatedAt);
+        n += await MergeStoreAsync(_db.Machines, data.Machines, m => m.UpdatedAt);
+        return n;
         // Pour un backup pré-v4 (Shops null), la migration au démarrage suivant
         // reconstruira les Shops à partir des visites legacy (cf. MigrationService).
+    }
+
+    private static async Task<int> MergeStoreAsync<T>(
+        BlazorDexie.Database.Store<T, int> store, List<T>? incoming, Func<T, DateTime> stamp)
+        where T : class
+    {
+        if (incoming is null) return 0;
+        var n = 0;
+        foreach (var item in incoming)
+        {
+            var key = GetId(item);
+            // Enregistrement neuf (Id 0/absent) ou inconnu localement : on insère.
+            // Sinon on n'écrase que si le distant est au moins aussi récent que le local.
+            if (key == 0)
+            {
+                await store.Put(item);
+            }
+            else
+            {
+                var existing = await store.Get(key);
+                if (existing is null || stamp(item) >= stamp(existing))
+                    await store.Put(item);
+            }
+            n++;
+        }
+        return n;
+    }
+
+    private static int GetId<T>(T item) => item switch
+    {
+        Coffee c => c.Id,
+        Brew b => b.Id,
+        Shop s => s.Id,
+        CoffeeShopVisit v => v.Id,
+        Machine m => m.Id,
+        BackupSnapshot bs => bs.Id,
+        _ => 0
+    };
+
+    private static int CountRecords(CoffeeBackup b)
+        => (b.Coffees?.Count ?? 0) + (b.Brews?.Count ?? 0) + (b.Shops?.Count ?? 0)
+         + (b.ShopVisits?.Count ?? 0) + (b.Machines?.Count ?? 0);
+
+    // ─── Clichés locaux de sauvegarde (filet de sécurité) ───
+
+    public const int MaxSnapshots = 10;
+
+    /// <summary>Capture un cliché complet du local. <paramref name="prebuilt"/> évite un rechargement
+    /// si le backup a déjà été construit par l'appelant. Best-effort : n'échoue jamais la synchro.</summary>
+    private async Task CaptureSnapshotAsync(string reason, CoffeeBackup? prebuilt = null)
+    {
+        try
+        {
+            var backup = prebuilt ?? await BuildBackupAsync();
+            var snap = new BackupSnapshot
+            {
+                CreatedAt = DateTime.UtcNow,
+                Reason = reason,
+                RecordCount = CountRecords(backup),
+                Json = JsonSerializer.Serialize(backup, BackupOptions)
+            };
+            await _db.Snapshots.Add(snap);
+            await PruneSnapshotsAsync();
+        }
+        catch (Exception ex)
+        {
+            LastError = $"Cliché de sauvegarde : {ex.Message}";
+        }
+    }
+
+    private async Task PruneSnapshotsAsync()
+    {
+        var all = await _db.Snapshots.OrderBy(nameof(BackupSnapshot.CreatedAt)).ToList();
+        if (all.Count <= MaxSnapshots) return;
+        foreach (var s in all.Take(all.Count - MaxSnapshots))
+            await _db.Snapshots.Delete(s.Id);
+    }
+
+    /// <summary>Liste les clichés disponibles, du plus récent au plus ancien.</summary>
+    public async Task<List<BackupSnapshot>> GetSnapshotsAsync()
+    {
+        var all = await _db.Snapshots.OrderBy(nameof(BackupSnapshot.CreatedAt)).ToList();
+        all.Reverse();
+        return all;
+    }
+
+    /// <summary>Restaure un cliché : remplace intégralement le local par son contenu.
+    /// Un cliché de l'état courant est pris au préalable (la restauration est elle-même annulable).</summary>
+    public async Task<bool> RestoreSnapshotAsync(int snapshotId)
+    {
+        var snap = await _db.Snapshots.Get(snapshotId);
+        if (snap is null || string.IsNullOrEmpty(snap.Json)) return false;
+
+        CoffeeBackup? backup;
+        try { backup = JsonSerializer.Deserialize<CoffeeBackup>(snap.Json, ImportOptions); }
+        catch { return false; }
+        if (backup is null) return false;
+
+        IsBusy = true;
+        LastError = null;
+        LastInfo = null;
+        StateChanged?.Invoke();
+        try
+        {
+            await CaptureSnapshotAsync("avant restauration");
+
+            await _db.Coffees.Clear();
+            await _db.Brews.Clear();
+            await _db.ShopVisits.Clear();
+            await _db.Shops.Clear();
+            await _db.Machines.Clear();
+
+            foreach (var c in backup.Coffees ?? new()) await _db.Coffees.Put(c);
+            foreach (var b in backup.Brews ?? new()) await _db.Brews.Put(b);
+            foreach (var s in backup.Shops ?? new()) await _db.Shops.Put(s);
+            foreach (var v in backup.ShopVisits ?? new()) await _db.ShopVisits.Put(v);
+            foreach (var m in backup.Machines ?? new()) await _db.Machines.Put(m);
+
+            LastInfo = $"Restauration OK ({CountRecords(backup)} enreg.)";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LastError = $"Restauration : {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+            StateChanged?.Invoke();
+        }
     }
 
     private async Task<string?> GetItem(string key)

@@ -14,7 +14,6 @@
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 @inject IJSRuntime JS
-@inject SyncService Sync
 @inject LocalizationService Loc
 
 <PageTitle>@(IsEdit ? Loc.T("visitform.title_edit") : Loc.T("visitform.title_new"))</PageTitle>
@@ -293,7 +292,6 @@ else
                 await Db.ShopVisits.Add(_model);
                 Snackbar.Add(Loc.T("visitform.snack_created"), Severity.Success);
             }
-            Sync.RequestPush();
             Nav.NavigateTo($"shops/{_shop.Id}");
         }
         catch (Exception ex)
@@ -360,7 +358,6 @@ else
         });
         if (ok != true || Id is null) return;
         await Db.ShopVisits.Delete(Id.Value);
-        Sync.RequestPush();
         Snackbar.Add(Loc.T("visitform.snack_deleted"), Severity.Info);
         Nav.NavigateTo(_shop is not null ? $"shops/{_shop.Id}" : "shops");
     }

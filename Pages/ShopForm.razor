@@ -13,7 +13,6 @@
 @inject IDialogService Dialogs
 @inject IJSRuntime JS
 @inject PlaceSearchService PlaceSearch
-@inject SyncService Sync
 @inject LocalizationService Loc
 
 <PageTitle>@(IsEdit ? Loc.T("shopform.title_edit") : Loc.T("shopform.title_new"))</PageTitle>
@@ -184,7 +183,6 @@
             {
                 _model.Id = Id!.Value;
                 await Db.Shops.Put(_model);
-                Sync.RequestPush();
                 Snackbar.Add(Loc.T("shopform.snack_saved"), Severity.Success);
                 Nav.NavigateTo($"shops/{Id}");
             }
@@ -193,7 +191,6 @@
                 _model.CreatedAt = DateTime.UtcNow;
                 _model.Id = 0;
                 var newId = await Db.Shops.Add(_model);
-                Sync.RequestPush();
                 Snackbar.Add(Loc.T("shopform.snack_created"), Severity.Success);
                 Nav.NavigateTo($"shops/{newId}");
             }
