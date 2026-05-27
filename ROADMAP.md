@@ -39,7 +39,7 @@ Items classés par ordre de priorité. ☑ = fait, ▶ = en cours, ⬜ = à fair
 
 ## Multi-appareil
 
-- ☑ **16. Sync entre appareils via GitHub Gist** — Réglages → champ Personal Access Token GitHub (scope `gist`). L'app crée un Gist privé au premier sync, push/pull du JSON complet (cafés, brews, visites, machines). Auto-pull au démarrage + bouton « Synchroniser maintenant » (pull puis push, last-write-wins).
+- ☑ **16. Sync entre appareils via GitHub Gist** — Réglages → champ Personal Access Token GitHub (scope `gist`). L'app crée un Gist privé au premier sync, push/pull du JSON complet (cafés, brews, visites, machines). ⚠️ Comportement initial (auto-pull au démarrage + last-write-wins destructif) **revu en profondeur**, cf. item 20.
 
 ## UX & confort
 
@@ -49,6 +49,21 @@ Items classés par ordre de priorité. ☑ = fait, ▶ = en cours, ⬜ = à fair
 ## Features coffee-geek (suite)
 
 - ☑ **19. Vue comparaison de brews côte-à-côte** — sur la fiche d'un café, cases à cocher sur chaque brew. Bouton « Comparer X/2 » disponible dès 2 sélectionnés → ouverture d'un `BrewCompareDialog` qui affiche les deux brews en colonnes avec les écarts surlignés.
+
+## Robustesse données — refonte de la sync (PR #8)
+
+- ▶ **20. Sync Gist : sauvegarde sans perte + manuelle uniquement** — refonte suite à une **perte de données** : l'ancien auto-pull au démarrage faisait `Clear()` sur les tables locales puis réinjectait le Gist, donc un Gist vide/ancien/illisible écrasait le local sain.
+  - **Pull non destructif** : `MergeBackupAsync` fusionne **par Id** (upsert) au lieu de `Clear()` + réinjection ; aucun enregistrement local n'est jamais supprimé. Sur conflit, le plus récent gagne (`UpdatedAt` si dispo — Coffee/Shop/Machine —, sinon `CreatedAt` — Brew/CoffeeShopVisit).
+  - **Garde anti-vide** : un Gist vide n'écrase plus un local non vide (le push restaure alors le cloud).
+  - **Clichés de sécurité locaux** : nouveau store IndexedDB `Snapshots` (modèle `Models/BackupSnapshot.cs`), cliché complet pris avant chaque pull, 10 derniers conservés. Restauration depuis **Réglages → Clichés de sécurité** (annulable, prend un cliché de l'état courant avant de restaurer). **Schéma DB bumpé v7 → v8.**
+  - **Synchro 100 % manuelle** : suppression de l'auto-pull au démarrage (et de la découverte réseau du Gist dans `InitializeAsync`) et du push debounced (`RequestPush` retiré du `SyncService`, de tous les formulaires et de `MigrationService`). Seule entrée : le bouton « Synchroniser » (header + Réglages) → `SyncAsync` = pull (merge) puis push.
+  - Textes Réglages reformulés (fr/en/it) : « Sauvegarde cloud », rappel que rien n'est envoyé automatiquement.
+  - **Fichiers clés** : `Lib/SyncService.cs`, `Models/BackupSnapshot.cs`, `Data/CoffeeDb.cs` (store + version 8), `Pages/Settings.razor` (UI clichés), `wwwroot/i18n/{fr,en,it}.json`.
+  - **⚠️ Reste à faire (prochaine session)** :
+    - **Compiler** (`dotnet build`) et corriger d'éventuelles erreurs — le code n'a **pas pu être compilé** dans l'environnement web (pas de SDK .NET). Points à vérifier en priorité : l'API BlazorDexie utilisée (`Store<T,int>.Get/Put/Add/Delete/OrderBy`), le pattern matching de `GetId<T>`, le merge générique `MergeStoreAsync<T>`.
+    - **Tester en navigateur** : démarrage sans appel réseau, bouton sync (pull+push), Gist vide + local non vide, création/restauration de cliché, absence de push auto après une saisie.
+    - Vérifier la **migration de schéma v7 → v8** (création du store `Snapshots`) sur une base existante.
+    - Merger la PR #8 une fois validée.
 
 ---
 
