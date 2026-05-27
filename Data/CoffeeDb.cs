@@ -35,6 +35,10 @@ public class CoffeeDb : Db<CoffeeDb>
     public Store<Machine, int> Machines { get; set; } =
         new("++Id", nameof(Machine.Name), nameof(Machine.Type), nameof(Machine.CreatedAt));
 
+    /// <summary>Clichés locaux de sauvegarde (filet de sécurité avant synchro). Cf. <see cref="Lib.SyncService"/>.</summary>
+    public Store<BackupSnapshot, int> Snapshots { get; set; } =
+        new("++Id", nameof(BackupSnapshot.CreatedAt));
+
     // Versions :
     //   1-2 : init (Coffee, Brew, CoffeeShopVisit)
     //   3   : ajout Machines + champs lat/long/address sur visit
@@ -42,8 +46,9 @@ public class CoffeeDb : Db<CoffeeDb>
     //   5   : extraction de Shop comme entité distincte (migration data dans MigrationService)
     //   6   : ajout MilkType (nullable) sur Brew et CoffeeShopVisit — pas de migration data
     //   7   : Rating int → decimal sur Brew et CoffeeShopVisit (demi-étoiles) — pas de migration data
+    //   8   : ajout du store Snapshots (clichés locaux de sauvegarde) — pas de migration data
     public CoffeeDb(BlazorDexieOptions options)
-        : base("coffee-tracker", 7, Array.Empty<IDbVersion>(), options)
+        : base("coffee-tracker", 8, Array.Empty<IDbVersion>(), options)
     {
     }
 }

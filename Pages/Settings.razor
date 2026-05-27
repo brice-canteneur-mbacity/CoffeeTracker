@@ -118,6 +118,42 @@
         <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-3" Style="font-style:italic;">
             @Loc.T("settings.sync_lww_warning")
         </MudText>
+
+        @if (Sync.IsConfigured)
+        {
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle2" Class="mb-1">@Loc.T("settings.snapshots_title")</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
+                @Loc.T("settings.snapshots_help", SyncService.MaxSnapshots)
+            </MudText>
+            @if (_snapshots.Count == 0)
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@Loc.T("settings.snapshots_none")</MudText>
+            }
+            else
+            {
+                <MudList T="string" Dense="true">
+                    @foreach (var s in _snapshots)
+                    {
+                        <MudListItem T="string">
+                            <div class="d-flex align-center justify-space-between" style="gap:8px;">
+                                <div>
+                                    <MudText Typo="Typo.body2">@s.CreatedAt.ToLocalTime().ToString("dd MMM, HH:mm")</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        @s.Reason · @Loc.T("settings.snapshots_count", s.RecordCount)
+                                    </MudText>
+                                </div>
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                                           StartIcon="@Icons.Material.Filled.Restore"
+                                           OnClick="@(() => RestoreSnapshotAsync(s.Id))" Disabled="Sync.IsBusy">
+                                    @Loc.T("settings.snapshots_restore")
+                                </MudButton>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        }
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
@@ -265,12 +301,14 @@
     private string? _migrationStatus;
     /// <summary>"auto" si pas de préférence explicite, sinon le code langue ("fr"/"en"/"it").</summary>
     private string _langValue = "auto";
+    private List<BackupSnapshot> _snapshots = new();
 
     protected override async Task OnInitializedAsync()
     {
         _googleKey = await PlaceSearch.GetGoogleKeyAsync();
         _pat = Sync.Pat;
         Sync.StateChanged += OnSyncChanged;
+        if (Sync.IsConfigured) await LoadSnapshotsAsync();
 
         _langValue = Loc.HasUserPreference ? Loc.CurrentLanguage : "auto";
 
@@ -316,6 +354,30 @@
         var ok = await Sync.SyncAsync();
         if (ok) Snackbar.Add(Loc.T("settings.snack_sync_ok"), Severity.Success);
         else if (!string.IsNullOrEmpty(Sync.LastError)) Snackbar.Add(Sync.LastError, Severity.Error);
+        await LoadSnapshotsAsync();
+    }
+
+    private async Task LoadSnapshotsAsync()
+    {
+        _snapshots = await Sync.GetSnapshotsAsync();
+    }
+
+    private async Task RestoreSnapshotAsync(int id)
+    {
+        var ok = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
+        {
+            Title = Loc.T("settings.snapshots_restore_title"),
+            Message = Loc.T("settings.snapshots_restore_msg"),
+            YesText = Loc.T("settings.snapshots_restore_yes"),
+            CancelText = Loc.T("common.cancel")
+        });
+        if (ok != true) return;
+
+        var done = await Sync.RestoreSnapshotAsync(id);
+        Snackbar.Add(
+            done ? Loc.T("settings.snack_restore_ok") : Loc.T("settings.snack_restore_fail"),
+            done ? Severity.Success : Severity.Error);
+        await LoadSnapshotsAsync();
     }
 
     private async Task DisconnectSyncAsync()
