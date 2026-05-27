@@ -12,7 +12,6 @@
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
-@inject SyncService Sync
 @inject LocalizationService Loc
 
 <PageTitle>@(IsEdit ? Loc.T("coffeeform.title_edit") : Loc.T("coffeeform.title_new"))</PageTitle>
@@ -235,7 +234,6 @@
             {
                 _model.Id = Id!.Value;
                 await Db.Coffees.Put(_model);
-                Sync.RequestPush();
                 Snackbar.Add(Loc.T("coffeeform.snack_saved"), Severity.Success);
                 Nav.NavigateTo($"coffees/{Id}");
             }
@@ -244,7 +242,6 @@
                 _model.CreatedAt = DateTime.UtcNow;
                 _model.Id = 0;
                 var newId = await Db.Coffees.Add(_model);
-                Sync.RequestPush();
                 Snackbar.Add(Loc.T("coffeeform.snack_created"), Severity.Success);
                 Nav.NavigateTo($"coffees/{newId}");
             }

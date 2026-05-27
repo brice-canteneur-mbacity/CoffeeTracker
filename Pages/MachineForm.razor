@@ -10,7 +10,6 @@
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 @inject IJSRuntime JS
-@inject SyncService Sync
 @inject LocalizationService Loc
 
 <PageTitle>@(IsEdit ? Loc.T("machineform.title_edit") : Loc.T("machineform.title_new"))</PageTitle>
@@ -172,7 +171,6 @@
                 await Db.Machines.Add(_model);
                 Snackbar.Add(Loc.T("machineform.snack_created"), Severity.Success);
             }
-            Sync.RequestPush();
             Nav.NavigateTo("machines");
         }
         catch (Exception ex)
@@ -196,7 +194,6 @@
         });
         if (ok != true || Id is null) return;
         await Db.Machines.Delete(Id.Value);
-        Sync.RequestPush();
         Snackbar.Add(Loc.T("machineform.snack_deleted"), Severity.Info);
         Nav.NavigateTo("machines");
     }

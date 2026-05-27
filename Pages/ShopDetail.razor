@@ -9,7 +9,6 @@
 @inject NavigationManager Nav
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
-@inject SyncService Sync
 @inject LocalizationService Loc
 
 <PageTitle>@(_shop?.Name ?? Loc.T("nav.shops"))</PageTitle>
@@ -203,7 +202,6 @@ else
         // Cascade : supprimer toutes les visites avant le shop.
         foreach (var v in _visits) await Db.ShopVisits.Delete(v.Id);
         await Db.Shops.Delete(Id);
-        Sync.RequestPush();
         Snackbar.Add(Loc.T("shopdetail.snack_deleted"), Severity.Info);
         Nav.NavigateTo("shops");
     }

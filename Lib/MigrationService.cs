@@ -8,14 +8,13 @@ namespace CoffeeTracker.Lib;
 /// au plus une fois par utilisateur — la condition d'entrée est conçue pour devenir fausse
 /// dès que la migration a tourné, donc relancer l'app n'a aucun effet.
 /// </summary>
-public class MigrationService(CoffeeDb db, SyncService sync)
+public class MigrationService(CoffeeDb db)
 {
     private readonly CoffeeDb _db = db;
-    private readonly SyncService _sync = sync;
 
     /// <summary>
     /// Point d'entrée appelé au démarrage par <see cref="Layout.MainLayout"/>. Applique toutes
-    /// les migrations en attente et déclenche un push vers le Gist si quelque chose a changé.
+    /// les migrations en attente. La sauvegarde vers le Gist reste manuelle (bouton « Synchroniser »).
     /// Toute exception remonte au caller (qui l'affichera via snackbar).
     /// </summary>
     public async Task<MigrationReport> RunIfNeededAsync()
@@ -26,9 +25,6 @@ public class MigrationService(CoffeeDb db, SyncService sync)
         // Critère : visite avec ShopId == 0 (jamais reliée à un Shop). Une fois reliées,
         // ShopId != 0 → la condition est fausse au prochain run.
         await MigrateVisitsToShopsAsync(report);
-
-        // Si on a touché à des données, déclenche un push vers le Gist.
-        if (report.HasChanges) _sync.RequestPush();
 
         return report;
     }
@@ -64,7 +60,6 @@ public class MigrationService(CoffeeDb db, SyncService sync)
     {
         var report = new MigrationReport();
         await MigrateVisitsToShopsAsync(report);
-        if (report.HasChanges) _sync.RequestPush();
         return report;
     }
 

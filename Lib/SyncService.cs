@@ -55,26 +55,9 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
             LastSync = ls;
         StateChanged?.Invoke();
 
-        if (!IsConfigured) return;
-
-        // Si on n'a pas de GistId localement, on cherche un Gist existant dans le compte
-        // (cas typique : nouveau navigateur où on vient de saisir le PAT).
-        if (string.IsNullOrEmpty(GistId))
-        {
-            var found = await FindExistingGistAsync();
-            if (!string.IsNullOrEmpty(found))
-            {
-                GistId = found;
-                await SetItem(GistIdKey, found);
-                StateChanged?.Invoke();
-            }
-        }
-
-        // Auto-pull si on a maintenant un GistId.
-        if (!string.IsNullOrEmpty(GistId))
-        {
-            _ = PullAsync();
-        }
+        // Aucune synchro automatique au démarrage : ni pull (qui pourrait modifier le local),
+        // ni découverte réseau du Gist. Tout passe par le bouton « Synchroniser » (manuel),
+        // qui retrouve/crée le Gist au besoin via SyncAsync.
     }
 
     /// <summary>
@@ -321,34 +304,6 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         if (!pulled) return false;
         return await PushAsync();
     }
-
-    /// <summary>
-    /// Demande un push différé (debounced). Plusieurs appels rapprochés sont coalescés
-    /// en un seul push après <paramref name="delayMs"/> ms d'inactivité. Fire-and-forget.
-    /// </summary>
-    public void RequestPush(int delayMs = 3000)
-    {
-        if (!IsConfigured) return;
-        _pendingPush?.Cancel();
-        var cts = new CancellationTokenSource();
-        _pendingPush = cts;
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(delayMs, cts.Token);
-                await PushAsync();
-            }
-            catch (OperationCanceledException) { /* coalescé */ }
-            catch (Exception ex)
-            {
-                LastError = $"Auto-push : {ex.Message}";
-                StateChanged?.Invoke();
-            }
-        });
-    }
-
-    private CancellationTokenSource? _pendingPush;
 
     private async Task<CoffeeBackup> BuildBackupAsync() => new()
     {
