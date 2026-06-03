@@ -42,7 +42,7 @@
                     </div>
                 }
                 <MudStack Spacing="1">
-                    <InputFile id="coffeePhotoInput" OnChange="OnPhotoSelectedAsync" accept="image/*" capture="environment" style="display:none;" />
+                    <InputFile id="coffeePhotoInput" OnChange="OnPhotoSelectedAsync" accept="image/*" style="display:none;" />
                     <label for="coffeePhotoInput" class="upload-button">
                         <MudIcon Icon="@Icons.Material.Filled.PhotoCamera" Size="Size.Small" />
                         <span>@(string.IsNullOrEmpty(_model.PhotoDataUrl) ? Loc.T("coffeeform.photo_add") : Loc.T("coffeeform.photo_change"))</span>
@@ -212,7 +212,7 @@
             await stream.CopyToAsync(ms);
             var bytes = ms.ToArray();
             var dataUrl = await JS.InvokeAsync<string>("coffeeImage.bytesToCompressedDataUrl",
-                bytes, file.ContentType, 1024, 0.82);
+                bytes, file.ContentType);
             _model.PhotoDataUrl = dataUrl;
         }
         catch (Exception ex)

@@ -277,6 +277,24 @@
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
+        <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_photos")</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            @Loc.T("settings.photos_help")
+        </MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Compress"
+                   OnClick="RecompressPhotosAsync" Disabled="_busy || _recompressing">
+            @(_recompressing
+                ? Loc.T("settings.recompress_progress", _recompressDone, _recompressTotal)
+                : Loc.T("settings.btn_recompress"))
+        </MudButton>
+        @if (!string.IsNullOrEmpty(_recompressStatus))
+        {
+            <MudText Typo="Typo.caption" Class="mt-2 d-block">@_recompressStatus</MudText>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="0">
         <MudText Typo="Typo.h6" Class="mb-1">@Loc.T("settings.section_danger")</MudText>
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
             @Loc.T("settings.danger_help")
@@ -299,6 +317,10 @@
     private string _notifPermission = "default";
     private MigrationDiagnostic? _diag;
     private string? _migrationStatus;
+    private bool _recompressing;
+    private int _recompressDone;
+    private int _recompressTotal;
+    private string? _recompressStatus;
     /// <summary>"auto" si pas de préférence explicite, sinon le code langue ("fr"/"en"/"it").</summary>
     private string _langValue = "auto";
     private List<BackupSnapshot> _snapshots = new();
@@ -610,6 +632,99 @@
         finally
         {
             _busy = false;
+        }
+    }
+
+    private record PhotoEntry(string OldUrl, Func<string, Task> Update);
+
+    private async Task RecompressPhotosAsync()
+    {
+        var confirm = await Dialogs.ShowMessageBoxAsync(new MessageBoxOptions
+        {
+            Title = Loc.T("settings.recompress_title"),
+            Message = Loc.T("settings.recompress_msg"),
+            YesText = Loc.T("settings.recompress_yes"),
+            CancelText = Loc.T("common.cancel")
+        });
+        if (confirm != true) return;
+
+        _recompressStatus = null;
+        _recompressDone = 0;
+        _recompressTotal = 0;
+        _recompressing = true;
+        StateHasChanged();
+
+        try
+        {
+            var coffees = await Db.Coffees.ToCollection().ToList();
+            var machines = await Db.Machines.ToCollection().ToList();
+            var shops = await Db.Shops.ToCollection().ToList();
+            var visits = await Db.ShopVisits.ToCollection().ToList();
+
+            var queue = new List<PhotoEntry>();
+            foreach (var c in coffees.Where(x => !string.IsNullOrEmpty(x.PhotoDataUrl)))
+                queue.Add(new PhotoEntry(c.PhotoDataUrl!, async u => { c.PhotoDataUrl = u; await Db.Coffees.Put(c); }));
+            foreach (var m in machines.Where(x => !string.IsNullOrEmpty(x.PhotoDataUrl)))
+                queue.Add(new PhotoEntry(m.PhotoDataUrl!, async u => { m.PhotoDataUrl = u; await Db.Machines.Put(m); }));
+            foreach (var s in shops.Where(x => !string.IsNullOrEmpty(x.PhotoDataUrl)))
+                queue.Add(new PhotoEntry(s.PhotoDataUrl!, async u => { s.PhotoDataUrl = u; await Db.Shops.Put(s); }));
+            foreach (var v in visits.Where(x => !string.IsNullOrEmpty(x.PhotoDataUrl)))
+                queue.Add(new PhotoEntry(v.PhotoDataUrl!, async u => { v.PhotoDataUrl = u; await Db.ShopVisits.Put(v); }));
+
+            _recompressTotal = queue.Count;
+            if (_recompressTotal == 0)
+            {
+                _recompressStatus = Loc.T("settings.recompress_nothing");
+                Snackbar.Add(_recompressStatus, Severity.Info);
+                return;
+            }
+
+            long bytesBefore = 0;
+            long bytesAfter = 0;
+            int updated = 0;
+            int failed = 0;
+
+            foreach (var entry in queue)
+            {
+                try
+                {
+                    var newUrl = await JS.InvokeAsync<string>("coffeeImage.recompressDataUrl", entry.OldUrl);
+                    bytesBefore += entry.OldUrl.Length;
+                    if (!string.IsNullOrEmpty(newUrl) && newUrl.Length < entry.OldUrl.Length)
+                    {
+                        await entry.Update(newUrl);
+                        bytesAfter += newUrl.Length;
+                        updated++;
+                    }
+                    else
+                    {
+                        bytesAfter += entry.OldUrl.Length;
+                    }
+                }
+                catch
+                {
+                    failed++;
+                }
+
+                _recompressDone++;
+                StateHasChanged();
+                await Task.Yield();
+            }
+
+            var savedKb = Math.Max(0, (bytesBefore - bytesAfter) / 1024);
+            _recompressStatus = Loc.T("settings.recompress_done", updated, savedKb);
+            if (failed > 0) _recompressStatus += " " + Loc.T("settings.recompress_failed", failed);
+            Snackbar.Add(_recompressStatus, Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _recompressStatus = Loc.T("common.error_prefix", ex.Message);
+            Snackbar.Add(_recompressStatus, Severity.Error);
+        }
+        finally
+        {
+            _recompressing = false;
+            StateHasChanged();
         }
     }
 
