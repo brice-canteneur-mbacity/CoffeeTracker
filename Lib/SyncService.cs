@@ -125,6 +125,16 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         try
         {
             var backup = await BuildBackupAsync();
+
+            // Anti-wipe : ne pas écraser un Gist existant avec une sauvegarde vide
+            // (cas d'un pull qui a échoué juste avant sur une nouvelle install, par exemple).
+            // Pour repartir de zéro côté cloud, supprimer le Gist manuellement sur GitHub.
+            if (CountRecords(backup) == 0 && !string.IsNullOrEmpty(GistId))
+            {
+                LastError = "Push annulé : aucune donnée locale à sauvegarder (le Gist existant n'est pas écrasé).";
+                return false;
+            }
+
             var content = JsonSerializer.Serialize(backup, BackupOptions);
 
             var fileObj = new Dictionary<string, object>
@@ -216,7 +226,10 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
 
             if (data is null)
             {
-                LastError = "Aucun Gist exploitable — un nouveau sera créé au prochain push.";
+                // Si TryFetchGistAsync a déjà renseigné LastError avec la cause précise
+                // (HTTP non-OK, exception réseau/CORS, etc.), on ne l'écrase pas.
+                if (string.IsNullOrEmpty(LastError))
+                    LastError = "Lecture du Gist impossible. Tes données locales sont intactes ; réessaie dans un instant.";
                 return false;
             }
 
@@ -253,7 +266,8 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         }
     }
 
-    /// <summary>Tente de récupérer le contenu d'un Gist. Retourne null si 404 / vide / erreur réseau.</summary>
+    /// <summary>Tente de récupérer le contenu d'un Gist. Retourne null si 404 / vide / erreur ;
+    /// dans ce dernier cas <see cref="LastError"/> est renseigné avec la cause précise.</summary>
     /// <remarks>
     /// GitHub tronque le champ <c>content</c> à 1 Mo dans la réponse <c>GET /gists/{id}</c> et
     /// expose un flag <c>truncated</c> + <c>raw_url</c> par fichier. Avec des photos en base64,
@@ -270,7 +284,11 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
 
             var response = await _http.SendAsync(request);
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = $"Lecture Gist : HTTP {(int)response.StatusCode} ({response.ReasonPhrase}).";
+                return null;
+            }
 
             var body = await response.Content.ReadAsStringAsync();
             var gist = JsonSerializer.Deserialize<GistResponse>(body, ImportOptions);
@@ -290,24 +308,46 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
             if (string.IsNullOrEmpty(content)) return null;
             return JsonSerializer.Deserialize<CoffeeBackup>(content, ImportOptions);
         }
-        catch
+        catch (Exception ex)
         {
+            LastError = $"Lecture Gist : {ex.Message}";
             return null;
         }
     }
 
-    /// <summary>Récupère le contenu brut d'un fichier Gist via son raw_url (auth PAT requise).</summary>
+    /// <summary>Récupère le contenu brut d'un fichier Gist via son raw_url.</summary>
+    /// <remarks>
+    /// Aucun <c>Authorization</c> ni <c>User-Agent</c> ajouté : le SHA du commit dans l'URL fait
+    /// office de capability d'accès et ces headers déclencheraient une preflight CORS que
+    /// <c>gist.githubusercontent.com</c> ne sait pas servir (bloque la requête depuis un navigateur).
+    /// </remarks>
     private async Task<string?> FetchRawAsync(string rawUrl)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, rawUrl);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Pat);
-        request.Headers.UserAgent.ParseAdd("CoffeeTracker");
-        var response = await _http.SendAsync(request);
-        if (!response.IsSuccessStatusCode) return null;
-        return await response.Content.ReadAsStringAsync();
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, rawUrl);
+            var response = await _http.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = $"Lecture Gist (raw) : HTTP {(int)response.StatusCode} ({response.ReasonPhrase}).";
+                return null;
+            }
+            return await response.Content.ReadAsStringAsync();
+        }
+        catch (Exception ex)
+        {
+            LastError = $"Lecture Gist (raw) : {ex.Message}";
+            return null;
+        }
     }
 
-    /// <summary>Sync = pull + push (le pull en premier, le push ensuite si pull a réussi).</summary>
+    /// <summary>Sync = pull (best-effort) puis push (toujours).</summary>
+    /// <remarks>
+    /// Le push tourne même si le pull a échoué (réseau, CORS sur raw_url pour Gists > 1 Mo, etc.) :
+    /// le local étant la source de vérité en mono-appareil, on veut que la sauvegarde parte
+    /// quoi qu'il arrive. La protection contre l'écrasement d'un Gist non vide par du local
+    /// vide est faite côté <see cref="PushAsync"/>.
+    /// </remarks>
     public async Task<bool> SyncAsync()
     {
         if (!IsConfigured) return false;
@@ -327,8 +367,10 @@ public class SyncService(IJSRuntime js, CoffeeDb db)
         // Toujours pas de Gist : c'est une première synchro → push direct (crée le Gist).
         if (string.IsNullOrEmpty(GistId)) return await PushAsync();
 
-        var pulled = await PullAsync();
-        if (!pulled) return false;
+        await PullAsync();
+        // Le push tourne quel que soit le résultat du pull (cf. remarque sur la méthode).
+        // PushAsync reset LastError/LastInfo en début, donc si push réussit, l'utilisateur
+        // verra le succès du push (l'erreur de pull était une info de diagnostic).
         return await PushAsync();
     }
 
