@@ -9,6 +9,9 @@
 @inject CoffeeDb Db
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+@inject PlaceSearchService PlaceSearch
 @inject LocalizationService Loc
 
 <PageTitle>@Loc.T("shops.title")</PageTitle>
@@ -18,7 +21,7 @@
     <Action>
         <MudIconButton Icon="@(_mapMode ? Icons.Material.Filled.ViewList : Icons.Material.Filled.Map)"
                        Size="Size.Medium"
-                       OnClick="@(() => _mapMode = !_mapMode)"
+                       OnClick="ToggleMapModeAsync"
                        aria-label="@(_mapMode ? Loc.T("shops.toggle_to_list") : Loc.T("shops.toggle_to_map"))" />
         <MudIconButton Icon="@Icons.Material.Filled.Add"
                        Color="Color.Primary"
@@ -45,6 +48,28 @@ else
 
     if (_mapMode)
     {
+        <div class="d-flex flex-wrap mb-2" style="gap:8px;">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Explore"
+                       OnClick="SearchNearbyAsync"
+                       Disabled="@(_searchingNearby || !_googleConfigured)">
+                @(_searchingNearby ? Loc.T("nearby.searching") : Loc.T("nearby.button"))
+            </MudButton>
+            @if (_suggestions.Count > 0)
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Clear"
+                           OnClick="ClearSuggestionsAsync">
+                    @Loc.T("nearby.clear", _suggestions.Count)
+                </MudButton>
+            }
+            @if (!_googleConfigured)
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary align-self-center">
+                    @Loc.T("nearby.requires_google_key")
+                </MudText>
+            }
+        </div>
         <div id="@MapElementId" class="shops-map"></div>
         if (filtered.Count == 0)
         {
@@ -165,6 +190,16 @@ else
     private bool _mapMode;
     private bool _mapInitialized;
 
+    // « Cafés bien notés à proximité » (Google) — affichés en couche séparée sur la carte.
+    private const int NearbyRadiusMeters = 1000;
+    private const double NearbyMinRating = 4.5;
+    private const int NearbyMinRatingCount = 10;
+
+    private List<NearbyCafe> _suggestions = new();
+    private bool _searchingNearby;
+    private bool _googleConfigured;
+    private DotNetObjectReference<Shops>? _selfRef;
+
     private record ShopAggregate(
         Shop Shop,
         int VisitCount,
@@ -215,6 +250,139 @@ else
             .ToList();
 
         _loading = false;
+        var key = await PlaceSearch.GetGoogleKeyAsync();
+        _googleConfigured = !string.IsNullOrEmpty(key);
+    }
+
+    private async Task SearchNearbyAsync()
+    {
+        if (_searchingNearby) return;
+        _searchingNearby = true;
+        try
+        {
+            var loc = await PlaceSearch.GeolocateAsync();
+            var cafes = await PlaceSearch.SearchNearbyCafesAsync(
+                loc.Latitude, loc.Longitude, NearbyRadiusMeters, NearbyMinRating, NearbyMinRatingCount);
+            _suggestions = cafes ?? new();
+
+            if (_suggestions.Count == 0)
+            {
+                Snackbar.Add(Loc.T("nearby.snack_empty"), Severity.Info);
+            }
+            else
+            {
+                _selfRef ??= DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("coffeeMap.showSuggestions", MapElementId, _suggestions, _selfRef);
+                Snackbar.Add(Loc.T("nearby.snack_found", _suggestions.Count), Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _searchingNearby = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearSuggestionsAsync()
+    {
+        _suggestions = new();
+        try { await JS.InvokeVoidAsync("coffeeMap.clearSuggestions", MapElementId); } catch { }
+    }
+
+    private async Task ToggleMapModeAsync()
+    {
+        _mapMode = !_mapMode;
+        if (!_mapMode && _suggestions.Count > 0)
+        {
+            // La couche suggestion est détruite avec la carte ; on aligne l'état C# pour
+            // que le bouton « Effacer » ne reste pas avec un compteur fantôme au retour.
+            _suggestions = new();
+        }
+        await Task.CompletedTask;
+    }
+
+    /// <summary>Invoqué depuis le popup Leaflet quand l'utilisateur clique sur un café suggéré.</summary>
+    [JSInvokable]
+    public async Task OnSuggestionClick(string externalId)
+    {
+        var cafe = _suggestions.FirstOrDefault(s => s.ExternalId == externalId);
+        if (cafe is null) return;
+
+        var parameters = new DialogParameters { ["Cafe"] = cafe };
+        var dialog = await Dialogs.ShowAsync<SuggestionActionDialog>(Loc.T("nearby.dialog_title"), parameters);
+        var result = await dialog.Result;
+        if (result is null || result.Canceled) return;
+
+        var action = result.Data as string;
+        if (action == "add") await AddCafeAsShopAsync(cafe);
+        else if (action == "visit") await CreateVisitForCafeAsync(cafe);
+    }
+
+    private async Task AddCafeAsShopAsync(NearbyCafe cafe)
+    {
+        var existing = await FindShopByExternalIdAsync(cafe.ExternalId);
+        if (existing is not null)
+        {
+            Snackbar.Add(Loc.T("nearby.snack_already_added", existing.Name), Severity.Info);
+            Nav.NavigateTo($"shops/{existing.Id}");
+            return;
+        }
+
+        var shop = new Shop
+        {
+            Name = cafe.Name,
+            City = cafe.City,
+            Country = cafe.Country,
+            Address = cafe.Address,
+            Latitude = cafe.Latitude,
+            Longitude = cafe.Longitude,
+            ExternalPlaceId = cafe.ExternalId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        var newId = await Db.Shops.Add(shop);
+        Snackbar.Add(Loc.T("nearby.snack_added", cafe.Name), Severity.Success);
+        Nav.NavigateTo($"shops/{newId}");
+    }
+
+    private async Task CreateVisitForCafeAsync(NearbyCafe cafe)
+    {
+        // Crée le Shop s'il n'existe pas déjà (par ExternalPlaceId), puis ouvre le formulaire de visite.
+        var existing = await FindShopByExternalIdAsync(cafe.ExternalId);
+        int shopId;
+        if (existing is not null)
+        {
+            shopId = existing.Id;
+        }
+        else
+        {
+            var shop = new Shop
+            {
+                Name = cafe.Name,
+                City = cafe.City,
+                Country = cafe.Country,
+                Address = cafe.Address,
+                Latitude = cafe.Latitude,
+                Longitude = cafe.Longitude,
+                ExternalPlaceId = cafe.ExternalId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            shopId = await Db.Shops.Add(shop);
+        }
+        Nav.NavigateTo($"shops/{shopId}/visits/new");
+    }
+
+    private async Task<Shop?> FindShopByExternalIdAsync(string externalId)
+    {
+        if (string.IsNullOrEmpty(externalId)) return null;
+        var shops = await Db.Shops.ToCollection().ToList();
+        return shops.FirstOrDefault(s =>
+            string.Equals(s.ExternalPlaceId, externalId, StringComparison.OrdinalIgnoreCase));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -253,7 +421,12 @@ else
     }
 
     private void OnLangChanged() => InvokeAsync(StateHasChanged);
-    public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
+    public void Dispose()
+    {
+        Loc.LanguageChanged -= OnLangChanged;
+        _selfRef?.Dispose();
+        _selfRef = null;
+    }
 
     public async ValueTask DisposeAsync()
     {

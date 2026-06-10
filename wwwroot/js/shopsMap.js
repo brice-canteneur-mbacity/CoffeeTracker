@@ -120,9 +120,98 @@ window.coffeeMap = (function () {
   function destroy(elementId) {
     const entry = _maps.get(elementId);
     if (!entry) return;
+    if (entry.dotNetRef) { try { entry.dotNetRef.dispose && entry.dotNetRef.dispose(); } catch (_) {} }
     entry.map.remove();
     _maps.delete(elementId);
   }
 
-  return { init, update, destroy };
+  // ─── Suggestions « Google bien notés à proximité » ────────────────────
+  // Couche séparée pour ne pas se mélanger avec les shops déjà visités.
+  // Marqueurs distincts (couleur or, label = note).
+  function suggestionIcon(rating) {
+    const label = Number(rating).toFixed(1);
+    return L.divIcon({
+      className: 'coffee-marker coffee-marker-suggestion',
+      html: `<div class="coffee-marker-dot coffee-marker-dot-suggestion">${label}</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -18]
+    });
+  }
+
+  function formatDistance(meters) {
+    return meters < 1000
+      ? `${meters} m`
+      : `${(meters / 1000).toFixed(1)} km`;
+  }
+
+  // suggestions: [{ externalId, name, address, latitude, longitude, rating, userRatingCount, distanceMeters }]
+  // dotNetRef: DotNetObjectReference Blazor invoqué via OnSuggestionClick(externalId) au clic du bouton popup.
+  function showSuggestions(elementId, suggestions, dotNetRef) {
+    const entry = _maps.get(elementId);
+    if (!entry) return;
+
+    if (!entry.suggestionLayer) {
+      entry.suggestionLayer = L.layerGroup().addTo(entry.map);
+    } else {
+      entry.suggestionLayer.clearLayers();
+    }
+    entry.dotNetRef = dotNetRef;
+
+    const points = [];
+    for (const s of (suggestions || [])) {
+      if (s.latitude == null || s.longitude == null) continue;
+      const safeName = escapeHtml(s.name || 'Sans nom');
+      const safeAddr = s.address ? escapeHtml(s.address) : '';
+      const safeId = escapeHtml(s.externalId || '');
+      const rating = Number(s.rating) || 0;
+      const ratingCount = Number(s.userRatingCount) || 0;
+      const dist = formatDistance(Number(s.distanceMeters) || 0);
+      const popup = `
+        <div class="coffee-popup">
+          <div class="coffee-popup-title">${safeName}</div>
+          <div class="coffee-popup-meta">★ ${rating.toFixed(1)} · ${ratingCount} avis · ${dist}</div>
+          ${safeAddr ? `<div class="coffee-popup-meta">${safeAddr}</div>` : ''}
+          <button type="button" class="coffee-popup-link coffee-popup-action"
+                  data-external-id="${safeId}">
+            Ajouter à mes shops…
+          </button>
+        </div>`;
+      const marker = L.marker([s.latitude, s.longitude], { icon: suggestionIcon(rating) })
+        .bindPopup(popup);
+      // Délégation : on attache le handler à l'ouverture du popup (le bouton n'existe pas avant).
+      marker.on('popupopen', (e) => {
+        const node = e.popup.getElement();
+        if (!node) return;
+        const btn = node.querySelector('button.coffee-popup-action');
+        if (!btn) return;
+        btn.onclick = () => {
+          const id = btn.getAttribute('data-external-id');
+          if (entry.dotNetRef && id) {
+            try { entry.dotNetRef.invokeMethodAsync('OnSuggestionClick', id); } catch (_) {}
+          }
+        };
+      });
+      entry.suggestionLayer.addLayer(marker);
+      points.push([s.latitude, s.longitude]);
+    }
+
+    // Recadre pour englober suggestions + shops existants (sans zoomer trop).
+    if (points.length > 0) {
+      const allPoints = points.slice();
+      entry.layer.eachLayer(l => {
+        const ll = l.getLatLng && l.getLatLng();
+        if (ll) allPoints.push([ll.lat, ll.lng]);
+      });
+      entry.map.fitBounds(L.latLngBounds(allPoints), { padding: [40, 40], maxZoom: 16 });
+    }
+  }
+
+  function clearSuggestions(elementId) {
+    const entry = _maps.get(elementId);
+    if (!entry || !entry.suggestionLayer) return;
+    entry.suggestionLayer.clearLayers();
+  }
+
+  return { init, update, destroy, showSuggestions, clearSuggestions };
 })();
