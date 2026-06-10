@@ -1,0 +1,54 @@
+@*
+    Dialog présenté quand l'utilisateur clique sur un café suggéré par Google sur la carte.
+    Propose deux actions : ajouter le café à la liste de Shops (sans visite), ou créer
+    directement une visite (qui crée d'abord le Shop si besoin).
+    Retourne via DialogResult la string "add" ou "visit", ou est annulé.
+*@
+@inject LocalizationService Loc
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <div>
+                <MudText Typo="Typo.h6" Style="font-weight:600;">@Cafe.Name</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    ★ @Cafe.Rating.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture)
+                    · @Loc.T("nearby.reviews_count", Cafe.UserRatingCount)
+                    · @FormatDistance(Cafe.DistanceMeters)
+                </MudText>
+                @if (!string.IsNullOrEmpty(Cafe.Address))
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-1">@Cafe.Address</MudText>
+                }
+            </div>
+
+            <MudText Typo="Typo.body2">@Loc.T("nearby.dialog_prompt")</MudText>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">@Loc.T("common.cancel")</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Bookmark"
+                   OnClick="@(() => Close("add"))">
+            @Loc.T("nearby.action_add")
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.RateReview"
+                   OnClick="@(() => Close("visit"))">
+            @Loc.T("nearby.action_visit")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter, EditorRequired] public NearbyCafe Cafe { get; set; } = default!;
+
+    private void Cancel() => MudDialog.Cancel();
+    private void Close(string action) => MudDialog.Close(DialogResult.Ok(action));
+
+    private static string FormatDistance(int meters)
+        => meters < 1000
+            ? $"{meters} m"
+            : $"{(meters / 1000.0).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture)} km";
+}

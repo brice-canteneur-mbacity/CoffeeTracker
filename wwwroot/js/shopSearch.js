@@ -145,5 +145,99 @@ window.coffeeShopSearch = (function () {
     return { provider: 'osm', results };
   }
 
-  return { getGoogleKey, setGoogleKey, googleSearch, osmSearch, search };
+  // ─── Géolocalisation ─────────────────────────────────────────────────────
+  // Wrapper sur navigator.geolocation pour récupérer une position unique.
+  // Rejette avec un message explicite (permission refusée, timeout, indispo).
+  function getCurrentLocation(timeoutMs) {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Géolocalisation non supportée par ce navigateur.'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        }),
+        err => {
+          const msg = err && err.code === 1
+            ? 'Géolocalisation refusée. Autorise-la dans les réglages du navigateur.'
+            : (err && err.message) || 'Position indisponible.';
+          reject(new Error(msg));
+        },
+        { enableHighAccuracy: true, timeout: timeoutMs || 10000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  // ─── Recherche de cafés à proximité (Google Places New) ──────────────────
+  // Place.searchNearby filtre par type/géographie ; on filtre nous-mêmes les
+  // résultats par note minimale et nombre d'avis (évite les 5★ d'un seul avis).
+  function haversineMeters(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2
+            + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  async function nearbyCafes(latitude, longitude, radiusMeters, minRating, minRatingCount) {
+    const key = getGoogleKey();
+    if (!key) throw new Error('Aucune clé Google configurée — ajoute-en une dans Réglages pour utiliser cette fonction.');
+
+    await loadGoogleScript(key);
+    const placesLib = await google.maps.importLibrary('places');
+    const { Place, SearchNearbyRankPreference } = placesLib;
+
+    const request = {
+      fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'id', 'addressComponents'],
+      locationRestriction: {
+        center: { lat: Number(latitude), lng: Number(longitude) },
+        radius: Number(radiusMeters)
+      },
+      includedPrimaryTypes: ['cafe'],
+      maxResultCount: 20,
+      rankPreference: SearchNearbyRankPreference.POPULARITY
+    };
+
+    const { places } = await Place.searchNearby(request);
+    const minR = Number(minRating) || 0;
+    const minC = Number(minRatingCount) || 0;
+
+    const out = [];
+    for (const p of (places || [])) {
+      const rating = Number(p.rating) || 0;
+      const ratingCount = Number(p.userRatingCount) || 0;
+      if (rating < minR) continue;
+      if (ratingCount < minC) continue;
+      if (!p.location) continue;
+
+      const lat = Number(p.location.lat());
+      const lng = Number(p.location.lng());
+      const addrComps = p.addressComponents || [];
+      const cityComp = addrComps.find(c => c.types && c.types.includes('locality'))
+                    || addrComps.find(c => c.types && c.types.includes('postal_town'));
+      const countryComp = addrComps.find(c => c.types && c.types.includes('country'));
+
+      out.push({
+        externalId: 'google:' + (p.id || ''),
+        name: (p.displayName && (p.displayName.text || p.displayName)) || '',
+        address: p.formattedAddress || null,
+        city: cityComp ? (cityComp.longText || cityComp.shortText) : null,
+        country: countryComp ? (countryComp.longText || countryComp.shortText) : null,
+        latitude: lat,
+        longitude: lng,
+        rating,
+        userRatingCount: ratingCount,
+        distanceMeters: Math.round(haversineMeters(Number(latitude), Number(longitude), lat, lng))
+      });
+    }
+    out.sort((a, b) => a.distanceMeters - b.distanceMeters);
+    return out;
+  }
+
+  return { getGoogleKey, setGoogleKey, googleSearch, osmSearch, search, getCurrentLocation, nearbyCafes };
 })();

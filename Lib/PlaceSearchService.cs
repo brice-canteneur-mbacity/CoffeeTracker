@@ -26,6 +26,25 @@ public record PlaceResult(
 /// <summary>Réponse de <see cref="PlaceSearchService.SearchAsync"/>.</summary>
 public record PlaceSearchResponse(string Provider, List<PlaceResult> Results);
 
+/// <summary>Position renvoyée par <see cref="PlaceSearchService.GeolocateAsync"/>.</summary>
+public record GeolocationResult(decimal Latitude, decimal Longitude, decimal Accuracy);
+
+/// <summary>
+/// Café Google retourné par la recherche « cafés à proximité » (<see cref="PlaceSearchService.SearchNearbyCafesAsync"/>).
+/// Pré-filtré par <c>rating ≥ minRating</c> et <c>userRatingCount ≥ minRatingCount</c> côté JS.
+/// </summary>
+public record NearbyCafe(
+    string ExternalId,
+    string Name,
+    string? Address,
+    string? City,
+    string? Country,
+    decimal Latitude,
+    decimal Longitude,
+    double Rating,
+    int UserRatingCount,
+    int DistanceMeters);
+
 /// <summary>
 /// Wrapper C# autour de l'interop JS <c>coffeeShopSearch</c> (cf. <c>wwwroot/js/shopSearch.js</c>).
 /// La logique de provider (Google Places New si une clé API est configurée en localStorage,
@@ -55,4 +74,22 @@ public class PlaceSearchService(IJSRuntime js)
     /// <summary>Persiste (ou efface si null/vide) la clé Google API en localStorage.</summary>
     public async Task SetGoogleKeyAsync(string? key)
         => await _js.InvokeVoidAsync("coffeeShopSearch.setGoogleKey", key);
+
+    /// <summary>
+    /// Demande la position courante au navigateur (permission utilisateur requise).
+    /// Lève une exception avec message explicite si refusé / timeout / non supporté.
+    /// </summary>
+    public async Task<GeolocationResult> GeolocateAsync(int timeoutMs = 10000)
+        => await _js.InvokeAsync<GeolocationResult>("coffeeShopSearch.getCurrentLocation", timeoutMs);
+
+    /// <summary>
+    /// Recherche les cafés Google à proximité du point donné, filtrés par note minimale et nombre d'avis.
+    /// Nécessite une clé Google API configurée. Retourne une liste triée par distance croissante.
+    /// </summary>
+    public async Task<List<NearbyCafe>> SearchNearbyCafesAsync(
+        decimal latitude, decimal longitude, int radiusMeters,
+        double minRating = 4.5, int minRatingCount = 10)
+        => await _js.InvokeAsync<List<NearbyCafe>>(
+            "coffeeShopSearch.nearbyCafes",
+            latitude, longitude, radiusMeters, minRating, minRatingCount);
 }

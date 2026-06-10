@@ -200,6 +200,32 @@ body.theme-dark .leaflet-tile-pane {
 }
 .coffee-marker-dot:hover { transform: scale(1.1); }
 
+/* Marqueur suggestion (Google bien noté) — distinct des shops visités */
+.coffee-marker-dot-suggestion {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #f4b942, #c98b1c);
+    border: 2px solid #fff;
+    color: #2a1a0e;
+    font-size: 11px;
+    box-shadow: 0 2px 10px rgba(201, 139, 28, 0.55);
+}
+
+/* Bouton d'action dans un popup suggestion */
+.coffee-popup-action {
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--coffee-accent-soft);
+    background: var(--coffee-surface-soft);
+    color: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+}
+.coffee-popup-action:hover { background: var(--coffee-accent-soft); }
+
 /* Popup content */
 .coffee-popup {
     min-width: 180px;
