@@ -267,6 +267,7 @@
   "shopdetail.label_address": "Indirizzo",
   "shopdetail.label_gps": "GPS",
   "shopdetail.label_added": "Aggiunto il",
+  "shopdetail.btn_google_maps": "Vedi su Google Maps",
   "shopdetail.section_notes": "Note",
   "shopdetail.section_visits": "Visite ({0})",
   "shopdetail.visits_empty": "Nessuna visita ancora. Aggiungine una!",

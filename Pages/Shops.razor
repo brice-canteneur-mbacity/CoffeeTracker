@@ -261,6 +261,12 @@ else
         try
         {
             var loc = await PlaceSearch.GeolocateAsync();
+
+            // Affiche immédiatement la position sur la carte (point bleu + cercle de précision),
+            // avant la recherche réseau — l'utilisateur voit où on cherche dès maintenant.
+            await JS.InvokeVoidAsync("coffeeMap.showUserPosition",
+                MapElementId, loc.Latitude, loc.Longitude, loc.Accuracy);
+
             var cafes = await PlaceSearch.SearchNearbyCafesAsync(
                 loc.Latitude, loc.Longitude, NearbyRadiusMeters, NearbyMinRating, NearbyMinRatingCount);
             _suggestions = cafes ?? new();
@@ -291,6 +297,7 @@ else
     {
         _suggestions = new();
         try { await JS.InvokeVoidAsync("coffeeMap.clearSuggestions", MapElementId); } catch { }
+        try { await JS.InvokeVoidAsync("coffeeMap.clearUserPosition", MapElementId); } catch { }
     }
 
     private async Task ToggleMapModeAsync()
@@ -400,6 +407,8 @@ else
                 rating = a.VisitCount > 0 ? Math.Round(a.AverageRating, 1) : 0d,
                 latitude = a.Shop.Latitude,
                 longitude = a.Shop.Longitude,
+                address = a.Shop.Address,
+                externalPlaceId = a.Shop.ExternalPlaceId,
                 lastVisitLabel = a.LastVisitDate is DateOnly d ? Format.Date(d) : null
             }).ToArray();
 

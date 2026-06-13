@@ -9,6 +9,22 @@ window.coffeeMap = (function () {
     }[c]));
   }
 
+  // Construit l'URL Google Maps pour un shop : place_id si disponible (fiche exacte),
+  // sinon coordonnées (point GPS), sinon adresse (recherche texte). Null si rien d'exploitable.
+  function googleMapsUrl(externalId, lat, lng, address) {
+    if (externalId && externalId.indexOf('google:') === 0) {
+      const placeId = externalId.substring('google:'.length);
+      if (placeId) return 'https://www.google.com/maps/place/?q=place_id:' + encodeURIComponent(placeId);
+    }
+    if (lat != null && lng != null) {
+      return 'https://www.google.com/maps?q=' + lat + ',' + lng;
+    }
+    if (address) {
+      return 'https://www.google.com/maps?q=' + encodeURIComponent(address);
+    }
+    return null;
+  }
+
   // Couleur du marqueur selon la note — palette café.
   function markerColor(rating) {
     const r = Number(rating) || 0;
@@ -94,6 +110,10 @@ window.coffeeMap = (function () {
       const visitsLine = visitsCount > 0
         ? `<div class="coffee-popup-meta">${visitsCount} visite${visitsCount > 1 ? 's' : ''}${s.lastVisitLabel ? ' · dernière le ' + escapeHtml(s.lastVisitLabel) : ''}</div>`
         : '<div class="coffee-popup-meta">Aucune visite</div>';
+      const gmapsUrl = googleMapsUrl(s.externalPlaceId, s.latitude, s.longitude, s.address);
+      const gmapsLine = gmapsUrl
+        ? `<a class="coffee-popup-link" href="${gmapsUrl}" target="_blank" rel="noopener">Google Maps ↗</a>`
+        : '';
       const popup = `
         <div class="coffee-popup">
           <div class="coffee-popup-title">${escapeHtml(s.shopName || 'Sans nom')}</div>
@@ -101,6 +121,7 @@ window.coffeeMap = (function () {
           ${visitsLine}
           ${stars ? `<div class="coffee-popup-stars">${stars}</div>` : ''}
           <a class="coffee-popup-link" href="shops/${s.id}">Voir le shop ›</a>
+          ${gmapsLine}
         </div>`;
       const marker = L.marker([s.latitude, s.longitude], { icon: makeIcon(r) }).bindPopup(popup);
       entry.layer.addLayer(marker);
@@ -167,11 +188,16 @@ window.coffeeMap = (function () {
       const rating = Number(s.rating) || 0;
       const ratingCount = Number(s.userRatingCount) || 0;
       const dist = formatDistance(Number(s.distanceMeters) || 0);
+      const gmapsUrl = googleMapsUrl(s.externalId, s.latitude, s.longitude, s.address);
+      const gmapsLine = gmapsUrl
+        ? `<a class="coffee-popup-link" href="${gmapsUrl}" target="_blank" rel="noopener">Google Maps ↗</a>`
+        : '';
       const popup = `
         <div class="coffee-popup">
           <div class="coffee-popup-title">${safeName}</div>
           <div class="coffee-popup-meta">★ ${rating.toFixed(1)} · ${ratingCount} avis · ${dist}</div>
           ${safeAddr ? `<div class="coffee-popup-meta">${safeAddr}</div>` : ''}
+          ${gmapsLine}
           <button type="button" class="coffee-popup-link coffee-popup-action"
                   data-external-id="${safeId}">
             Ajouter à mes shops…
@@ -213,5 +239,49 @@ window.coffeeMap = (function () {
     entry.suggestionLayer.clearLayers();
   }
 
-  return { init, update, destroy, showSuggestions, clearSuggestions };
+  // ─── Marqueur « ma position » (point bleu + cercle de précision) ────────
+  function showUserPosition(elementId, latitude, longitude, accuracyMeters) {
+    const entry = _maps.get(elementId);
+    if (!entry) return;
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    const acc = Math.max(0, Number(accuracyMeters) || 0);
+
+    if (entry.userMarker) {
+      entry.userMarker.setLatLng([lat, lng]);
+    } else {
+      const icon = L.divIcon({
+        className: 'user-position-marker',
+        html: '<div class="user-position-dot"></div>',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+      entry.userMarker = L.marker([lat, lng], { icon, interactive: false, keyboard: false })
+        .bindTooltip('Ma position', { direction: 'top', offset: [0, -10] })
+        .addTo(entry.map);
+    }
+    if (acc > 0) {
+      if (entry.userCircle) {
+        entry.userCircle.setLatLng([lat, lng]).setRadius(acc);
+      } else {
+        entry.userCircle = L.circle([lat, lng], {
+          radius: acc,
+          color: '#1a73e8',
+          fillColor: '#1a73e8',
+          fillOpacity: 0.10,
+          weight: 1,
+          interactive: false
+        }).addTo(entry.map);
+      }
+    }
+  }
+
+  function clearUserPosition(elementId) {
+    const entry = _maps.get(elementId);
+    if (!entry) return;
+    if (entry.userMarker) { entry.userMarker.remove(); entry.userMarker = null; }
+    if (entry.userCircle) { entry.userCircle.remove(); entry.userCircle = null; }
+  }
+
+  return { init, update, destroy, showSuggestions, clearSuggestions, showUserPosition, clearUserPosition };
 })();
