@@ -68,7 +68,7 @@
             <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("machineform.section_purchase")</MudText>
             <MudGrid Spacing="2">
                 <MudItem xs="12">
-                    <MudDatePicker @bind-Date="_purchaseDate" Label="@Loc.T("machineform.field_purchase_date")" Variant="Variant.Outlined" Editable="true" Clearable="true" />
+                    <MudDatePicker @bind-Date="_purchaseDate" Label="@Loc.T("machineform.field_purchase_date")" Variant="Variant.Outlined" Editable="true" Clearable="true" PickerVariant="PickerVariant.Dialog" />
                 </MudItem>
                 <MudItem xs="8">
                     <MudNumericField T="decimal?" @bind-Value="_model.Price" Label="@Loc.T("coffeeform.field_price")" Variant="Variant.Outlined" Format="0.##" Culture="@_inv" Min="0m" />

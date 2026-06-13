@@ -55,6 +55,19 @@ else
                 <DetailRow Label="@Loc.T("shopdetail.label_gps")" Value="@($"{_shop.Latitude.Value.ToString("0.#####", _inv)}, {_shop.Longitude.Value.ToString("0.#####", _inv)}")" />
             }
             <DetailRow Label="@Loc.T("shopdetail.label_added")" Value="@Format.Date(DateOnly.FromDateTime(_shop.CreatedAt))" />
+
+            @{ var gmapsUrl = GoogleMapsUrl(_shop); }
+            @if (gmapsUrl is not null)
+            {
+                <div class="mt-3">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Map"
+                               EndIcon="@Icons.Material.Filled.OpenInNew"
+                               Href="@gmapsUrl" Target="_blank">
+                        @Loc.T("shopdetail.btn_google_maps")
+                    </MudButton>
+                </div>
+            }
         </MudPaper>
 
         @if (!string.IsNullOrEmpty(_shop.Notes))
@@ -149,6 +162,28 @@ else
     private List<CoffeeShopVisit> _visits = new();
     private Dictionary<int, Coffee> _coffeesById = new();
     private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
+
+    /// <summary>
+    /// URL Google Maps pour le shop : préfère <c>place_id</c> (fiche exacte) si l'ExternalPlaceId
+    /// vient de Google, sinon coordonnées GPS, sinon adresse. Null si aucune info exploitable.
+    /// </summary>
+    private string? GoogleMapsUrl(Shop s)
+    {
+        if (!string.IsNullOrEmpty(s.ExternalPlaceId)
+            && s.ExternalPlaceId.StartsWith("google:", StringComparison.Ordinal))
+        {
+            var placeId = s.ExternalPlaceId.Substring("google:".Length);
+            if (placeId.Length > 0)
+                return $"https://www.google.com/maps/place/?q=place_id:{Uri.EscapeDataString(placeId)}";
+        }
+        if (s.Latitude is decimal lat && s.Longitude is decimal lng)
+        {
+            return $"https://www.google.com/maps?q={lat.ToString(_inv)},{lng.ToString(_inv)}";
+        }
+        if (!string.IsNullOrEmpty(s.Address))
+            return $"https://www.google.com/maps?q={Uri.EscapeDataString(s.Address)}";
+        return null;
+    }
 
     private string SubtitleText()
     {
