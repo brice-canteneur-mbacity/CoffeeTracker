@@ -42,10 +42,10 @@
         <MudPaper Class="pa-4" Elevation="0">
             <MudGrid Spacing="2">
                 <MudItem xs="6">
-                    <MudDatePicker @bind-Date="_date" Label="@Loc.T("brewform.field_date")" Variant="Variant.Outlined" Editable="true" />
+                    <MudDatePicker @bind-Date="_date" Label="@Loc.T("brewform.field_date")" Variant="Variant.Outlined" Editable="true" PickerVariant="PickerVariant.Dialog" />
                 </MudItem>
                 <MudItem xs="6">
-                    <MudTimePicker @bind-Time="_time" Label="@Loc.T("brewform.field_time")" Variant="Variant.Outlined" Editable="true" />
+                    <MudTimePicker @bind-Time="_time" Label="@Loc.T("brewform.field_time")" Variant="Variant.Outlined" Editable="true" PickerVariant="PickerVariant.Dialog" />
                 </MudItem>
             </MudGrid>
             <MudSelect T="BrewMethod" Value="_model.Method" ValueChanged="OnMethodChanged"
