@@ -85,7 +85,7 @@ else
         </MudPaper>
 
         <MudPaper Class="pa-4" Elevation="0">
-            <MudDatePicker @bind-Date="_date" Label="@Loc.T("brewform.field_date")" Variant="Variant.Outlined" Editable="true" />
+            <MudDatePicker @bind-Date="_date" Label="@Loc.T("brewform.field_date")" Variant="Variant.Outlined" Editable="true" PickerVariant="PickerVariant.Dialog" />
             <MudAutocomplete T="string"
                              Value="_model.DrinkType"
                              ValueChanged="@(v => _model.DrinkType = v)"

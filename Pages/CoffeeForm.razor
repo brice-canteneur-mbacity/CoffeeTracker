@@ -121,7 +121,7 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="6">
-                    <MudDatePicker @bind-Date="_roastDate" Label="@Loc.T("coffeeform.field_roast_date")" Variant="Variant.Outlined" Editable="true" />
+                    <MudDatePicker @bind-Date="_roastDate" Label="@Loc.T("coffeeform.field_roast_date")" Variant="Variant.Outlined" Editable="true" PickerVariant="PickerVariant.Dialog" />
                 </MudItem>
             </MudGrid>
         </MudPaper>
@@ -132,7 +132,7 @@
                 <MudText Typo="Typo.overline" Class="mud-text-secondary mb-2">@Loc.T("coffeeform.section_purchase")</MudText>
                 <MudGrid Spacing="2">
                     <MudItem xs="6">
-                        <MudDatePicker @bind-Date="_purchaseDate" Label="@Loc.T("coffeeform.field_purchase_date")" Variant="Variant.Outlined" Required="true" Editable="true" />
+                        <MudDatePicker @bind-Date="_purchaseDate" Label="@Loc.T("coffeeform.field_purchase_date")" Variant="Variant.Outlined" Required="true" Editable="true" PickerVariant="PickerVariant.Dialog" />
                     </MudItem>
                     <MudItem xs="6">
                         <MudNumericField T="int?" @bind-Value="_model.WeightGrams" Label="@Loc.T("coffeeform.field_weight")" Variant="Variant.Outlined" Min="0" Placeholder="250" />
