@@ -163,25 +163,31 @@ else
     private Dictionary<int, Coffee> _coffeesById = new();
     private readonly System.Globalization.CultureInfo _inv = System.Globalization.CultureInfo.InvariantCulture;
 
-    /// <summary>
-    /// URL Google Maps pour le shop : préfère <c>place_id</c> (fiche exacte) si l'ExternalPlaceId
-    /// vient de Google, sinon coordonnées GPS, sinon adresse. Null si aucune info exploitable.
-    /// </summary>
     private string? GoogleMapsUrl(Shop s)
     {
+        // Google Maps URLs spec : https://developers.google.com/maps/documentation/urls/get-started
+        // search/?api=1&query=...&query_place_id=... est le seul format documenté ; query est requis
+        // (fallback affiché si le place_id ne se résout pas dans l'app mobile).
+        var queryParts = new[] { s.Name, s.Address }
+            .Where(p => !string.IsNullOrWhiteSpace(p));
+        var query = string.Join(", ", queryParts);
+
         if (!string.IsNullOrEmpty(s.ExternalPlaceId)
             && s.ExternalPlaceId.StartsWith("google:", StringComparison.Ordinal))
         {
             var placeId = s.ExternalPlaceId.Substring("google:".Length);
             if (placeId.Length > 0)
-                return $"https://www.google.com/maps/place/?q=place_id:{Uri.EscapeDataString(placeId)}";
+            {
+                var q = string.IsNullOrEmpty(query) ? "place" : query;
+                return $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(q)}&query_place_id={Uri.EscapeDataString(placeId)}";
+            }
         }
         if (s.Latitude is decimal lat && s.Longitude is decimal lng)
         {
-            return $"https://www.google.com/maps?q={lat.ToString(_inv)},{lng.ToString(_inv)}";
+            return $"https://www.google.com/maps/search/?api=1&query={lat.ToString(_inv)},{lng.ToString(_inv)}";
         }
-        if (!string.IsNullOrEmpty(s.Address))
-            return $"https://www.google.com/maps?q={Uri.EscapeDataString(s.Address)}";
+        if (!string.IsNullOrEmpty(query))
+            return $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(query)}";
         return null;
     }
 

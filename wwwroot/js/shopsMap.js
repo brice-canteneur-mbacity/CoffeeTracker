@@ -9,18 +9,24 @@ window.coffeeMap = (function () {
     }[c]));
   }
 
-  // Construit l'URL Google Maps pour un shop : place_id si disponible (fiche exacte),
-  // sinon coordonnées (point GPS), sinon adresse (recherche texte). Null si rien d'exploitable.
-  function googleMapsUrl(externalId, lat, lng, address) {
+  // Format officiel Google Maps URLs : search/?api=1&query=...&query_place_id=...
+  // query est obligatoire (sert de fallback si le place_id n'est pas résolu dans l'app mobile).
+  // Doc : https://developers.google.com/maps/documentation/urls/get-started
+  function googleMapsUrl(externalId, lat, lng, address, name) {
+    const query = [name, address].filter(Boolean).join(', ');
     if (externalId && externalId.indexOf('google:') === 0) {
       const placeId = externalId.substring('google:'.length);
-      if (placeId) return 'https://www.google.com/maps/place/?q=place_id:' + encodeURIComponent(placeId);
+      if (placeId) {
+        const q = query || 'place';
+        return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q)
+          + '&query_place_id=' + encodeURIComponent(placeId);
+      }
     }
     if (lat != null && lng != null) {
-      return 'https://www.google.com/maps?q=' + lat + ',' + lng;
+      return 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng;
     }
-    if (address) {
-      return 'https://www.google.com/maps?q=' + encodeURIComponent(address);
+    if (query) {
+      return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query);
     }
     return null;
   }
@@ -110,7 +116,7 @@ window.coffeeMap = (function () {
       const visitsLine = visitsCount > 0
         ? `<div class="coffee-popup-meta">${visitsCount} visite${visitsCount > 1 ? 's' : ''}${s.lastVisitLabel ? ' · dernière le ' + escapeHtml(s.lastVisitLabel) : ''}</div>`
         : '<div class="coffee-popup-meta">Aucune visite</div>';
-      const gmapsUrl = googleMapsUrl(s.externalPlaceId, s.latitude, s.longitude, s.address);
+      const gmapsUrl = googleMapsUrl(s.externalPlaceId, s.latitude, s.longitude, s.address, s.shopName);
       const gmapsLine = gmapsUrl
         ? `<a class="coffee-popup-link" href="${gmapsUrl}" target="_blank" rel="noopener">Google Maps ↗</a>`
         : '';
@@ -188,7 +194,7 @@ window.coffeeMap = (function () {
       const rating = Number(s.rating) || 0;
       const ratingCount = Number(s.userRatingCount) || 0;
       const dist = formatDistance(Number(s.distanceMeters) || 0);
-      const gmapsUrl = googleMapsUrl(s.externalId, s.latitude, s.longitude, s.address);
+      const gmapsUrl = googleMapsUrl(s.externalId, s.latitude, s.longitude, s.address, s.name);
       const gmapsLine = gmapsUrl
         ? `<a class="coffee-popup-link" href="${gmapsUrl}" target="_blank" rel="noopener">Google Maps ↗</a>`
         : '';
