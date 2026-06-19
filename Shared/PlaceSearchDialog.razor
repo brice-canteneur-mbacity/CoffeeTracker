@@ -35,6 +35,9 @@
                 }
             </div>
 
+            @* AnchorOrigin/TransformOrigin : la liste s'ouvre vers le haut, au-dessus de l'input — *@
+            @* sinon le clavier mobile la masque entièrement. CoerceText=false : si on perd le focus *@
+            @* (scroll, etc.) sans avoir sélectionné d'item, le texte tapé reste dans le champ. *@
             <MudAutocomplete @ref="_autocomplete" T="PlaceResult"
                              Label="@Loc.T("shopform.field_name")"
                              Placeholder="@Loc.T("placesearch.placeholder")"
@@ -47,7 +50,10 @@
                              ResetValueOnEmptyText="true"
                              Clearable="true"
                              OpenOnFocus="false"
-                             Immediate="true">
+                             Immediate="true"
+                             CoerceText="false"
+                             AnchorOrigin="Origin.TopCenter"
+                             TransformOrigin="Origin.BottomCenter">
                 <ItemTemplate Context="item">
                     <div class="d-flex flex-column" style="gap:2px; min-width:0;">
                         <MudText Style="font-weight:600;">@item.Name</MudText>
