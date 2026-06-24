@@ -1,11 +1,11 @@
 @*
     Page de stats agrégées. Sections :
     - Compteurs : cafés, brews, shops (entités), visites
-    - Activité : 7j / 30j + heatmap calendrier 13 dernières semaines (HeatmapCalendar)
-    - Méthode favorite, origine la + achetée, meilleur café (≥ 2 brews)
+    - Activité : 7j / 30j + heatmap calendrier 13 dernières semaines (brews + visites cumulés)
+    - Méthode favorite, origine la + achetée, meilleur café (≥ 2 brews) — brew-only
     - Notes moyennes (brews, visites)
     - Budget : total dépensé en sacs, coût moyen par tasse, total shops
-    - Répartition par méthode (barres horizontales)
+    - Répartition par méthode (barres horizontales) — brew-only
 *@
 @page "/stats"
 @implements IDisposable
@@ -43,17 +43,17 @@ else
             </MudText>
             <MudGrid Spacing="2">
                 <MudItem xs="6">
-                    <MudText Typo="Typo.h4">@_brewsLast7</MudText>
+                    <MudText Typo="Typo.h4">@_cupsLast7</MudText>
                     <MudText Class="mud-text-secondary">@Loc.T("stats.activity_7d")</MudText>
                 </MudItem>
                 <MudItem xs="6">
-                    <MudText Typo="Typo.h4">@_brewsLast30</MudText>
+                    <MudText Typo="Typo.h4">@_cupsLast30</MudText>
                     <MudText Class="mud-text-secondary">@Loc.T("stats.activity_30d")</MudText>
                 </MudItem>
             </MudGrid>
 
             <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 mb-1 d-block">@Loc.T("stats.section_calendar")</MudText>
-            <HeatmapCalendar Counts="@_dailyBrews" WeeksBack="13" />
+            <HeatmapCalendar Counts="@_dailyCups" WeeksBack="13" />
         </MudPaper>
 
         @if (_budget is not null)
@@ -134,8 +134,8 @@ else
     private List<Brew> _brews = new();
     private List<CoffeeShopVisit> _visits = new();
     private int _shopsCount;
-    private int _brewsLast7;
-    private int _brewsLast30;
+    private int _cupsLast7;
+    private int _cupsLast30;
     private string _topMethodLabel = "—";
     private string _topOriginLabel = "—";
 
@@ -149,7 +149,7 @@ else
     private BudgetSummary? _budget;
     private record BudgetSummary(string TotalCoffees, string? AvgHomeCup, int HomeCupCount, string? TotalShops);
 
-    private Dictionary<DateOnly, int> _dailyBrews = new();
+    private Dictionary<DateOnly, int> _dailyCups = new();
     private Dictionary<BrewMethod, int> _methodCounts = new();
 
     protected override async Task OnInitializedAsync()
@@ -161,12 +161,25 @@ else
         _shopsCount = (await Db.Shops.ToCollection().ToList()).Count;
 
         var now = DateTime.Now;
-        _brewsLast7 = _brews.Count(b => b.Date >= now.AddDays(-7));
-        _brewsLast30 = _brews.Count(b => b.Date >= now.AddDays(-30));
+        var sevenDaysAgo = now.AddDays(-7);
+        var thirtyDaysAgo = now.AddDays(-30);
+        var sevenDaysAgoDate = DateOnly.FromDateTime(sevenDaysAgo);
+        var thirtyDaysAgoDate = DateOnly.FromDateTime(thirtyDaysAgo);
 
-        _dailyBrews = _brews
+        // Activité = consommation totale : brews maison + visites en shop sur la période.
+        _cupsLast7 = _brews.Count(b => b.Date >= sevenDaysAgo)
+                   + _visits.Count(v => v.Date >= sevenDaysAgoDate);
+        _cupsLast30 = _brews.Count(b => b.Date >= thirtyDaysAgo)
+                    + _visits.Count(v => v.Date >= thirtyDaysAgoDate);
+
+        // Heatmap = somme brews + visites par jour (la heatmap ne distingue pas le type).
+        _dailyCups = _brews
             .GroupBy(b => DateOnly.FromDateTime(b.Date))
             .ToDictionary(g => g.Key, g => g.Count());
+        foreach (var v in _visits)
+        {
+            _dailyCups[v.Date] = _dailyCups.GetValueOrDefault(v.Date, 0) + 1;
+        }
 
         _methodCounts = _brews.GroupBy(b => b.Method).ToDictionary(g => g.Key, g => g.Count());
         var topMethod = _methodCounts.OrderByDescending(x => x.Value).FirstOrDefault();
