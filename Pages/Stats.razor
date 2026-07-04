@@ -76,6 +76,7 @@ else
 
         <MudPaper Class="pa-4" Elevation="0">
             <DetailRow Label="@Loc.T("stats.label_top_method")" Value="@_topMethodLabel" />
+            <DetailRow Label="@Loc.T("stats.label_top_roaster")" Value="@_topRoasterLabel" />
             <DetailRow Label="@Loc.T("stats.label_top_origin")" Value="@_topOriginLabel" />
             <div class="detail-row">
                 <span class="detail-label">@Loc.T("stats.label_avg_brew")</span>
@@ -138,6 +139,7 @@ else
     private int _cupsLast30;
     private string _topMethodLabel = "—";
     private string _topOriginLabel = "—";
+    private string _topRoasterLabel = "—";
 
     private void OnLangChanged() => InvokeAsync(StateHasChanged);
     public void Dispose() => Loc.LanguageChanged -= OnLangChanged;
@@ -197,6 +199,16 @@ else
             _topOriginLabel = $"{topOrigin.Key} ({topOrigin.Value})";
         else
             _topOriginLabel = Loc.T("common.none");
+
+        var byRoaster = _coffees
+            .Where(c => !string.IsNullOrEmpty(c.Roaster))
+            .GroupBy(c => c.Roaster)
+            .ToDictionary(g => g.Key, g => g.Count());
+        var topRoaster = byRoaster.OrderByDescending(x => x.Value).FirstOrDefault();
+        if (byRoaster.Count > 0)
+            _topRoasterLabel = $"{topRoaster.Key} ({topRoaster.Value})";
+        else
+            _topRoasterLabel = Loc.T("common.none");
 
         if (_brews.Count > 0)
             _avgBrewRating = _brews.Average(b => (double)b.Rating);
