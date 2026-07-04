@@ -45,13 +45,14 @@ window.coffeeShopSearch = (function () {
     const token = new AutocompleteSessionToken();
     // includedPrimaryTypes est un filtre STRICT sur le type primaire Google Places.
     // Sans filtre, l'autocomplete renvoie aussi des adresses/villes/régions — inutilisable ici.
-    // Avec un filtre trop étroit, on rate des lieux réels : un café peut être catégorisé
-    // « coffee_shop » (spécialty coffee), « bakery » (boulangerie qui sert du café),
-    // « bar » (café-bar européen). L'API en accepte 5 max ; on prend les plus courants.
+    // L'API en accepte 5 max (INVALID_REQUEST au-delà) ; on prend les 5 types les plus
+    // pertinents pour un tracker de café : cafe, coffee_shop (specialty), coffee_roaster
+    // (torréfacteurs — nouveau type ajouté par Google en février 2026), bakery
+    // (boulangeries-cafés), bar (café-bars européens type italien/espagnol).
     const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
       input: query,
       sessionToken: token,
-      includedPrimaryTypes: ['cafe', 'coffee_shop', 'bakery', 'restaurant', 'bar']
+      includedPrimaryTypes: ['cafe', 'coffee_shop', 'coffee_roaster', 'bakery', 'bar']
     });
 
     const out = [];
