@@ -232,7 +232,18 @@
             @Loc.T("settings.place_types_help", _placeTypesSelected.Count, MaxPlaceTypes)
         </MudText>
 
-        @* Chips groupées par catégorie de la Table A "Food and Drink". *@
+        @* Switch "pas de filtre" : bypasse tout le catalogue, ne garde que les commerces. *@
+        <MudSwitch Value="_noTypeFilter"
+                   T="bool"
+                   ValueChanged="OnNoTypeFilterChangedAsync"
+                   Color="Color.Primary"
+                   Label="@Loc.T("settings.place_types_no_filter")" />
+        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-3">
+            @Loc.T("settings.place_types_no_filter_help")
+        </MudText>
+
+        @* Chips groupées par catégorie de la Table A "Food and Drink". Grisées si "no filter". *@
+        <div style="@(_noTypeFilter ? "opacity:0.4; pointer-events:none;" : "")">
         @foreach (var group in PlaceTypeCatalog)
         {
             <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 mb-1 d-block">@Loc.T($"settings.place_types_group_{group.Key}")</MudText>
@@ -273,6 +284,7 @@
             <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled"
                            OnClick="AddCustomPlaceTypeAsync" Disabled="_busy" Size="Size.Small"
                            aria-label="@Loc.T("common.add")" />
+        </div>
         </div>
 
         <div class="d-flex mt-3" style="gap:8px;">
@@ -403,11 +415,13 @@
 
     private HashSet<string> _placeTypesSelected = new();
     private string _customTypeInput = string.Empty;
+    private bool _noTypeFilter;
 
     protected override async Task OnInitializedAsync()
     {
         _googleKey = await PlaceSearch.GetGoogleKeyAsync();
         _placeTypesSelected = new HashSet<string>(await PlaceSearch.GetPrimaryTypesAsync());
+        _noTypeFilter = await PlaceSearch.GetNoTypeFilterAsync();
         _pat = Sync.Pat;
         Sync.StateChanged += OnSyncChanged;
         if (Sync.IsConfigured) await LoadSnapshotsAsync();
@@ -548,13 +562,21 @@
             var defaults = await PlaceSearch.GetDefaultPrimaryTypesAsync();
             _placeTypesSelected = new HashSet<string>(defaults);
             _customTypeInput = string.Empty;
+            _noTypeFilter = false;
             await PlaceSearch.SetPrimaryTypesAsync(null);
+            await PlaceSearch.SetNoTypeFilterAsync(false);
             Snackbar.Add(Loc.T("settings.place_types_snack_reset"), Severity.Info);
         }
         finally
         {
             _busy = false;
         }
+    }
+
+    private async Task OnNoTypeFilterChangedAsync(bool value)
+    {
+        _noTypeFilter = value;
+        await PlaceSearch.SetNoTypeFilterAsync(value);
     }
 
     private async Task AddCustomPlaceTypeAsync()

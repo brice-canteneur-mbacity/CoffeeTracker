@@ -456,6 +456,8 @@
   "settings.place_types_group_custom": "Types personnalisés",
   "settings.place_types_custom_help": "Ajouter un type non listé (doit être un identifiant valide de la Table A Google Places, en snake_case).",
   "settings.place_types_invalid_id": "Identifiant invalide : lettres minuscules et underscores uniquement.",
+  "settings.place_types_no_filter": "Ne pas filtrer par type",
+  "settings.place_types_no_filter_help": "À activer si un lieu réel ne remonte pas malgré la bonne saisie. Tous les commerces sont proposés (les adresses et villes restent écartées).",
   "settings.section_diagnostic": "Diagnostic & maintenance",
   "settings.diagnostic_help": "Si tes anciennes visites n'apparaissent pas dans la liste des shops, lance un diagnostic puis « Reconstruire les shops » pour relancer la migration.",
   "settings.diagnostic_visits": "Visites :",

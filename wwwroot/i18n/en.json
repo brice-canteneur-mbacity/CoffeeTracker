@@ -456,6 +456,8 @@
   "settings.place_types_group_custom": "Custom types",
   "settings.place_types_custom_help": "Add a type not listed above (must be a valid Google Places Table A identifier in snake_case).",
   "settings.place_types_invalid_id": "Invalid identifier: lowercase letters and underscores only.",
+  "settings.place_types_no_filter": "Don't filter by type",
+  "settings.place_types_no_filter_help": "Enable if a real place doesn't show up despite correct typing. All businesses are suggested (addresses and cities are still excluded).",
   "settings.section_diagnostic": "Diagnostic & maintenance",
   "settings.diagnostic_help": "If your old visits don't appear in the shop list, run a diagnostic then « Rebuild shops » to retry the migration.",
   "settings.diagnostic_visits": "Visits:",

@@ -7,6 +7,7 @@
 window.coffeeShopSearch = (function () {
   const KEY_STORAGE = 'coffee.google.apiKey';
   const PRIMARY_TYPES_STORAGE = 'coffee.google.primaryTypes';
+  const NO_FILTER_STORAGE = 'coffee.google.noTypeFilter';
   // 5 types par défaut, limite API. Voir Settings pour changer la sélection.
   const DEFAULT_PRIMARY_TYPES = ['cafe', 'coffee_shop', 'bakery', 'restaurant', 'bar'];
   const MAX_PRIMARY_TYPES = 5;
@@ -49,6 +50,19 @@ window.coffeeShopSearch = (function () {
     return DEFAULT_PRIMARY_TYPES.slice();
   }
 
+  // Mode "pas de filtre" : sans includedPrimaryTypes, l'autocomplete renvoie tout
+  // (adresses, villes, régions inclus). On filtre côté client sur types.includes('establishment')
+  // pour ne garder que les commerces. Nécessaire pour trouver certains lieux dont le type primaire
+  // n'est ni dans le catalogue ni dans une saisie custom.
+  function getNoTypeFilter() {
+    return localStorage.getItem(NO_FILTER_STORAGE) === '1';
+  }
+
+  function setNoTypeFilter(enabled) {
+    if (enabled) localStorage.setItem(NO_FILTER_STORAGE, '1');
+    else localStorage.removeItem(NO_FILTER_STORAGE);
+  }
+
   function loadGoogleScript(key) {
     if (_gmapsPromise) return _gmapsPromise;
     _gmapsPromise = new Promise((resolve, reject) => {
@@ -75,20 +89,26 @@ window.coffeeShopSearch = (function () {
     }
     const { AutocompleteSuggestion, AutocompleteSessionToken } = google.maps.places;
     const token = new AutocompleteSessionToken();
-    // includedPrimaryTypes est un filtre STRICT sur le type primaire Google Places.
-    // Sans filtre, l'autocomplete renvoie aussi des adresses/villes/régions — inutilisable ici.
-    // L'API accepte 5 types max (INVALID_REQUEST au-delà). La liste est configurable dans
-    // Settings ; getPrimaryTypes() retourne les 5 par défaut si non personnalisé.
-    const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
-      input: query,
-      sessionToken: token,
-      includedPrimaryTypes: getPrimaryTypes()
-    });
+    // Deux modes (configurable dans Settings) :
+    //  - avec filtre (par défaut) : includedPrimaryTypes contraint le résultat aux 5 types
+    //    max choisis par l'utilisateur (limite dure API : INVALID_REQUEST au-delà).
+    //  - sans filtre : on omet includedPrimaryTypes et on filtre côté client sur
+    //    types.includes('establishment') pour écarter adresses/villes/régions.
+    const noFilter = getNoTypeFilter();
+    const req = { input: query, sessionToken: token };
+    if (!noFilter) req.includedPrimaryTypes = getPrimaryTypes();
+    const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(req);
 
     const out = [];
     for (const sug of (suggestions || [])) {
       const pred = sug.placePrediction;
       if (!pred) continue;
+      // En mode "pas de filtre" on garde seulement les commerces (types 'establishment') ;
+      // adresses/villes/régions n'ont pas ce type et sont écartés.
+      if (noFilter) {
+        const predTypes = pred.types || [];
+        if (!predTypes.includes('establishment')) continue;
+      }
       try {
         const place = pred.toPlace();
         await place.fetchFields({
@@ -278,6 +298,7 @@ window.coffeeShopSearch = (function () {
   return {
     getGoogleKey, setGoogleKey,
     getPrimaryTypes, setPrimaryTypes, getDefaultPrimaryTypes,
+    getNoTypeFilter, setNoTypeFilter,
     googleSearch, osmSearch, search, getCurrentLocation, nearbyCafes
   };
 })();
