@@ -266,6 +266,9 @@ window.coffeeMap = (function () {
         .bindTooltip('Ma position', { direction: 'top', offset: [0, -10] })
         .addTo(entry.map);
     }
+    // Zoom sur la position — feedback visuel immédiat pendant que Google Places renvoie
+    // les résultats (~1-2s). showSuggestions() recadrera ensuite pour englober les cafés.
+    entry.map.setView([lat, lng], 14);
     if (acc > 0) {
       if (entry.userCircle) {
         entry.userCircle.setLatLng([lat, lng]).setRadius(acc);
