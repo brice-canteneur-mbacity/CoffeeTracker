@@ -456,6 +456,8 @@
   "settings.place_types_group_custom": "Tipi personalizzati",
   "settings.place_types_custom_help": "Aggiungi un tipo non elencato (deve essere un identificatore valido della Tabella A Google Places in snake_case).",
   "settings.place_types_invalid_id": "Identificatore non valido: solo lettere minuscole e underscore.",
+  "settings.place_types_no_filter": "Non filtrare per tipo",
+  "settings.place_types_no_filter_help": "Attiva se un luogo reale non appare nonostante l'ortografia corretta. Vengono suggeriti tutti i commerci (indirizzi e città restano esclusi).",
   "settings.section_diagnostic": "Diagnostica & manutenzione",
   "settings.diagnostic_help": "Se le tue vecchie visite non appaiono nell'elenco delle caffetterie, lancia una diagnostica poi « Ricostruisci caffetterie » per riprovare la migrazione.",
   "settings.diagnostic_visits": "Visite:",

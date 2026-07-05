@@ -88,6 +88,18 @@ public class PlaceSearchService(IJSRuntime js)
         => await _js.InvokeAsync<string[]>("coffeeShopSearch.getDefaultPrimaryTypes");
 
     /// <summary>
+    /// Mode « sans filtre » : true = pas de <c>includedPrimaryTypes</c> envoyé à l'API,
+    /// filtrage côté client sur <c>types.includes('establishment')</c> pour écarter
+    /// les adresses/villes/régions.
+    /// </summary>
+    public async Task<bool> GetNoTypeFilterAsync()
+        => await _js.InvokeAsync<bool>("coffeeShopSearch.getNoTypeFilter");
+
+    /// <summary>Active ou désactive le mode « sans filtre ».</summary>
+    public async Task SetNoTypeFilterAsync(bool enabled)
+        => await _js.InvokeVoidAsync("coffeeShopSearch.setNoTypeFilter", enabled);
+
+    /// <summary>
     /// Demande la position courante au navigateur (permission utilisateur requise).
     /// Lève une exception avec message explicite si refusé / timeout / non supporté.
     /// </summary>
