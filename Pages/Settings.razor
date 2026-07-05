@@ -231,16 +231,50 @@
         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
             @Loc.T("settings.place_types_help", _placeTypesSelected.Count, MaxPlaceTypes)
         </MudText>
-        <div class="d-flex flex-wrap" style="gap:6px;">
-            @foreach (var t in PlaceTypeCatalog)
-            {
-                var selected = _placeTypesSelected.Contains(t);
-                <MudChip T="string" Size="Size.Small"
-                         Variant="@(selected ? Variant.Filled : Variant.Outlined)"
-                         Color="@(selected ? Color.Primary : Color.Default)"
-                         OnClick="@(() => TogglePlaceTypeAsync(t))">@t</MudChip>
-            }
+
+        @* Chips groupées par catégorie de la Table A "Food and Drink". *@
+        @foreach (var group in PlaceTypeCatalog)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 mb-1 d-block">@Loc.T($"settings.place_types_group_{group.Key}")</MudText>
+            <div class="d-flex flex-wrap" style="gap:6px;">
+                @foreach (var t in group.Value)
+                {
+                    var selected = _placeTypesSelected.Contains(t);
+                    <MudChip T="string" Size="Size.Small"
+                             Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                             Color="@(selected ? Color.Primary : Color.Default)"
+                             OnClick="@(() => TogglePlaceTypeAsync(t))">@t</MudChip>
+                }
+            </div>
+        }
+
+        @* Types personnalisés hors catalogue (ajoutés à la main). *@
+        @{
+            var customSelected = _placeTypesSelected.Where(t => !_catalogFlat.Contains(t)).ToList();
+        }
+        @if (customSelected.Count > 0)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 mb-1 d-block">@Loc.T("settings.place_types_group_custom")</MudText>
+            <div class="d-flex flex-wrap" style="gap:6px;">
+                @foreach (var t in customSelected)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                             OnClose="@(() => TogglePlaceTypeAsync(t))">@t</MudChip>
+                }
+            </div>
+        }
+
+        @* Ajout d'un type personnalisé (pour couvrir les cas où un type Table A n'est pas dans le catalogue). *@
+        <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3 mb-1 d-block">@Loc.T("settings.place_types_custom_help")</MudText>
+        <div class="d-flex align-center" style="gap:8px;">
+            <MudTextField @bind-Value="_customTypeInput" Placeholder="italian_restaurant"
+                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                          OnKeyDown="@(async e => { if (e.Key == "Enter") await AddCustomPlaceTypeAsync(); })" />
+            <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled"
+                           OnClick="AddCustomPlaceTypeAsync" Disabled="_busy" Size="Size.Small"
+                           aria-label="@Loc.T("common.add")" />
         </div>
+
         <div class="d-flex mt-3" style="gap:8px;">
             <MudButton Variant="Variant.Outlined" Color="Color.Default"
                        StartIcon="@Icons.Material.Filled.Restore"
@@ -347,16 +381,28 @@
     private string _langValue = "auto";
     private List<BackupSnapshot> _snapshots = new();
 
-    // Sélection des primary types Google Places. Liste curée présentée à l'utilisateur ;
-    // il peut cocher jusqu'à MaxPlaceTypes types (limite dure côté API).
+    // Sélection des primary types Google Places (catégorie "Food and Drink" de la Table A
+    // documentée par Google). L'utilisateur peut cocher jusqu'à MaxPlaceTypes types
+    // (limite dure de l'API : INVALID_ARGUMENT au-delà). Types personnalisés (hors
+    // catalogue) autorisés via input libre — au cas où la Table A évolue plus vite que
+    // le catalogue codé ici.
     private const int MaxPlaceTypes = 5;
-    private static readonly string[] PlaceTypeCatalog =
+
+    // Regroupement par thématique pour rendre le multi-select lisible dans l'UI.
+    // Les clés doivent correspondre aux clés i18n settings.place_types_group_{key}.
+    private static readonly Dictionary<string, string[]> PlaceTypeCatalog = new()
     {
-        "cafe", "coffee_shop", "coffee_roastery",
-        "bakery", "restaurant", "bar",
-        "food_court", "meal_takeaway", "store"
+        ["coffee"] = new[] { "cafe", "coffee_shop", "coffee_roastery", "tea_house" },
+        ["bakery"] = new[] { "bakery", "bagel_shop", "sandwich_shop", "donut_shop", "dessert_shop", "ice_cream_shop" },
+        ["restaurant"] = new[] { "restaurant", "brunch_restaurant", "breakfast_restaurant", "diner", "cafeteria", "fast_food_restaurant" },
+        ["bar"] = new[] { "bar", "pub", "wine_bar" },
+        ["takeaway"] = new[] { "meal_takeaway", "meal_delivery", "food_court", "juice_shop" }
     };
+    private static readonly HashSet<string> _catalogFlat =
+        new(PlaceTypeCatalog.SelectMany(kv => kv.Value));
+
     private HashSet<string> _placeTypesSelected = new();
+    private string _customTypeInput = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -501,6 +547,7 @@
         {
             var defaults = await PlaceSearch.GetDefaultPrimaryTypesAsync();
             _placeTypesSelected = new HashSet<string>(defaults);
+            _customTypeInput = string.Empty;
             await PlaceSearch.SetPrimaryTypesAsync(null);
             Snackbar.Add(Loc.T("settings.place_types_snack_reset"), Severity.Info);
         }
@@ -508,6 +555,36 @@
         {
             _busy = false;
         }
+    }
+
+    private async Task AddCustomPlaceTypeAsync()
+    {
+        var raw = (_customTypeInput ?? string.Empty).Trim().ToLowerInvariant();
+        if (raw.Length == 0) return;
+
+        // Un identifiant Google Places est en snake_case : lettres + underscores uniquement.
+        // On refuse tout le reste avant d'appeler l'API (sinon INVALID_ARGUMENT en runtime).
+        if (!System.Text.RegularExpressions.Regex.IsMatch(raw, @"^[a-z][a-z_]*[a-z]$"))
+        {
+            Snackbar.Add(Loc.T("settings.place_types_invalid_id"), Severity.Warning);
+            return;
+        }
+
+        if (_placeTypesSelected.Contains(raw))
+        {
+            _customTypeInput = string.Empty;
+            return;
+        }
+
+        if (_placeTypesSelected.Count >= MaxPlaceTypes)
+        {
+            Snackbar.Add(Loc.T("settings.place_types_max_reached", MaxPlaceTypes), Severity.Warning);
+            return;
+        }
+
+        _placeTypesSelected.Add(raw);
+        _customTypeInput = string.Empty;
+        await PlaceSearch.SetPrimaryTypesAsync(_placeTypesSelected.ToArray());
     }
 
     private async Task OnThemeChanged(string pref)
