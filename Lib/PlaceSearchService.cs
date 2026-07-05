@@ -75,6 +75,18 @@ public class PlaceSearchService(IJSRuntime js)
     public async Task SetGoogleKeyAsync(string? key)
         => await _js.InvokeVoidAsync("coffeeShopSearch.setGoogleKey", key);
 
+    /// <summary>Retourne la sélection utilisateur des primary types Google Places (5 par défaut si non personnalisé).</summary>
+    public async Task<string[]> GetPrimaryTypesAsync()
+        => await _js.InvokeAsync<string[]>("coffeeShopSearch.getPrimaryTypes");
+
+    /// <summary>Persiste la sélection (max 5). Passer null/vide → efface la personnalisation, retour aux défauts.</summary>
+    public async Task SetPrimaryTypesAsync(string[]? types)
+        => await _js.InvokeVoidAsync("coffeeShopSearch.setPrimaryTypes", (object?)types);
+
+    /// <summary>Liste par défaut des primary types Google Places (au cas où l'utilisateur veut reset).</summary>
+    public async Task<string[]> GetDefaultPrimaryTypesAsync()
+        => await _js.InvokeAsync<string[]>("coffeeShopSearch.getDefaultPrimaryTypes");
+
     /// <summary>
     /// Demande la position courante au navigateur (permission utilisateur requise).
     /// Lève une exception avec message explicite si refusé / timeout / non supporté.

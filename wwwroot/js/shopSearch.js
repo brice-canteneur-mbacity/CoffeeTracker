@@ -6,6 +6,10 @@
 
 window.coffeeShopSearch = (function () {
   const KEY_STORAGE = 'coffee.google.apiKey';
+  const PRIMARY_TYPES_STORAGE = 'coffee.google.primaryTypes';
+  // 5 types par défaut, limite API. Voir Settings pour changer la sélection.
+  const DEFAULT_PRIMARY_TYPES = ['cafe', 'coffee_shop', 'bakery', 'restaurant', 'bar'];
+  const MAX_PRIMARY_TYPES = 5;
   let _gmapsPromise = null;
 
   function getGoogleKey() {
@@ -15,6 +19,34 @@ window.coffeeShopSearch = (function () {
   function setGoogleKey(key) {
     if (key && key.trim().length > 0) localStorage.setItem(KEY_STORAGE, key.trim());
     else localStorage.removeItem(KEY_STORAGE);
+  }
+
+  // Sélection utilisateur des primary types Google Places. Retourne la valeur par
+  // défaut si rien n'est stocké ou si le JSON est invalide (protection contre corruption
+  // manuelle de localStorage). Toujours capé à 5 (limite API : INVALID_ARGUMENT au-delà).
+  function getPrimaryTypes() {
+    const raw = localStorage.getItem(PRIMARY_TYPES_STORAGE);
+    if (!raw) return DEFAULT_PRIMARY_TYPES.slice();
+    try {
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr) || arr.length === 0) return DEFAULT_PRIMARY_TYPES.slice();
+      return arr.filter(x => typeof x === 'string' && x.length > 0).slice(0, MAX_PRIMARY_TYPES);
+    } catch (_) {
+      return DEFAULT_PRIMARY_TYPES.slice();
+    }
+  }
+
+  function setPrimaryTypes(types) {
+    if (!Array.isArray(types) || types.length === 0) {
+      localStorage.removeItem(PRIMARY_TYPES_STORAGE);
+      return;
+    }
+    const clean = types.filter(x => typeof x === 'string' && x.length > 0).slice(0, MAX_PRIMARY_TYPES);
+    localStorage.setItem(PRIMARY_TYPES_STORAGE, JSON.stringify(clean));
+  }
+
+  function getDefaultPrimaryTypes() {
+    return DEFAULT_PRIMARY_TYPES.slice();
   }
 
   function loadGoogleScript(key) {
@@ -45,13 +77,12 @@ window.coffeeShopSearch = (function () {
     const token = new AutocompleteSessionToken();
     // includedPrimaryTypes est un filtre STRICT sur le type primaire Google Places.
     // Sans filtre, l'autocomplete renvoie aussi des adresses/villes/régions — inutilisable ici.
-    // Un café peut être catégorisé « coffee_shop » (specialty coffee), « bakery »
-    // (boulangerie qui sert du café), « bar » (café-bar européen). L'API accepte 5 types max
-    // (INVALID_REQUEST au-delà) ; on prend les plus courants.
+    // L'API accepte 5 types max (INVALID_REQUEST au-delà). La liste est configurable dans
+    // Settings ; getPrimaryTypes() retourne les 5 par défaut si non personnalisé.
     const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
       input: query,
       sessionToken: token,
-      includedPrimaryTypes: ['cafe', 'coffee_shop', 'bakery', 'restaurant', 'bar']
+      includedPrimaryTypes: getPrimaryTypes()
     });
 
     const out = [];
@@ -244,5 +275,9 @@ window.coffeeShopSearch = (function () {
     return out;
   }
 
-  return { getGoogleKey, setGoogleKey, googleSearch, osmSearch, search, getCurrentLocation, nearbyCafes };
+  return {
+    getGoogleKey, setGoogleKey,
+    getPrimaryTypes, setPrimaryTypes, getDefaultPrimaryTypes,
+    googleSearch, osmSearch, search, getCurrentLocation, nearbyCafes
+  };
 })();
