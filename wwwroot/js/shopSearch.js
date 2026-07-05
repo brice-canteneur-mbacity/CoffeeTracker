@@ -248,16 +248,20 @@ window.coffeeShopSearch = (function () {
     const placesLib = await google.maps.importLibrary('places');
     const { Place, SearchNearbyRankPreference } = placesLib;
 
+    // Utilise le même paramétrage que la recherche par nom (getPrimaryTypes / noFilter mode)
+    // pour la cohérence : si l'utilisateur a coché "coffee_shop" et "coffee_roastery" dans
+    // Settings, il veut voir ces types aussi bien en autocomplete qu'en recherche à proximité.
+    const noFilter = getNoTypeFilter();
     const request = {
       fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'id', 'addressComponents'],
       locationRestriction: {
         center: { lat: Number(latitude), lng: Number(longitude) },
         radius: Number(radiusMeters)
       },
-      includedPrimaryTypes: ['cafe'],
       maxResultCount: 20,
       rankPreference: SearchNearbyRankPreference.POPULARITY
     };
+    if (!noFilter) request.includedPrimaryTypes = getPrimaryTypes();
 
     const { places } = await Place.searchNearby(request);
     const minR = Number(minRating) || 0;
