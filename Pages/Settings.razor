@@ -224,6 +224,28 @@
                        StartIcon="@Icons.Material.Filled.Clear"
                        OnClick="ClearGoogleKeyAsync" Disabled="_busy">@Loc.T("settings.search_btn_clear")</MudButton>
         </div>
+
+        <MudDivider Class="my-4" />
+
+        <MudText Typo="Typo.subtitle1" Class="mb-1">@Loc.T("settings.section_place_types")</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+            @Loc.T("settings.place_types_help", _placeTypesSelected.Count, MaxPlaceTypes)
+        </MudText>
+        <div class="d-flex flex-wrap" style="gap:6px;">
+            @foreach (var t in PlaceTypeCatalog)
+            {
+                var selected = _placeTypesSelected.Contains(t);
+                <MudChip T="string" Size="Size.Small"
+                         Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                         Color="@(selected ? Color.Primary : Color.Default)"
+                         OnClick="@(() => TogglePlaceTypeAsync(t))">@t</MudChip>
+            }
+        </div>
+        <div class="d-flex mt-3" style="gap:8px;">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Restore"
+                       OnClick="ResetPlaceTypesAsync" Disabled="_busy">@Loc.T("settings.place_types_btn_reset")</MudButton>
+        </div>
     </MudPaper>
 
     <MudPaper Class="pa-4" Elevation="0">
@@ -325,9 +347,21 @@
     private string _langValue = "auto";
     private List<BackupSnapshot> _snapshots = new();
 
+    // Sélection des primary types Google Places. Liste curée présentée à l'utilisateur ;
+    // il peut cocher jusqu'à MaxPlaceTypes types (limite dure côté API).
+    private const int MaxPlaceTypes = 5;
+    private static readonly string[] PlaceTypeCatalog =
+    {
+        "cafe", "coffee_shop", "coffee_roastery",
+        "bakery", "restaurant", "bar",
+        "food_court", "meal_takeaway", "store"
+    };
+    private HashSet<string> _placeTypesSelected = new();
+
     protected override async Task OnInitializedAsync()
     {
         _googleKey = await PlaceSearch.GetGoogleKeyAsync();
+        _placeTypesSelected = new HashSet<string>(await PlaceSearch.GetPrimaryTypesAsync());
         _pat = Sync.Pat;
         Sync.StateChanged += OnSyncChanged;
         if (Sync.IsConfigured) await LoadSnapshotsAsync();
@@ -440,6 +474,40 @@
         _googleKey = null;
         await PlaceSearch.SetGoogleKeyAsync(null);
         Snackbar.Add(Loc.T("settings.snack_key_cleared"), Severity.Info);
+    }
+
+    private async Task TogglePlaceTypeAsync(string type)
+    {
+        if (_placeTypesSelected.Contains(type))
+        {
+            _placeTypesSelected.Remove(type);
+        }
+        else
+        {
+            if (_placeTypesSelected.Count >= MaxPlaceTypes)
+            {
+                Snackbar.Add(Loc.T("settings.place_types_max_reached", MaxPlaceTypes), Severity.Warning);
+                return;
+            }
+            _placeTypesSelected.Add(type);
+        }
+        await PlaceSearch.SetPrimaryTypesAsync(_placeTypesSelected.ToArray());
+    }
+
+    private async Task ResetPlaceTypesAsync()
+    {
+        _busy = true;
+        try
+        {
+            var defaults = await PlaceSearch.GetDefaultPrimaryTypesAsync();
+            _placeTypesSelected = new HashSet<string>(defaults);
+            await PlaceSearch.SetPrimaryTypesAsync(null);
+            Snackbar.Add(Loc.T("settings.place_types_snack_reset"), Severity.Info);
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task OnThemeChanged(string pref)
