@@ -138,11 +138,23 @@ else
                     <div class="degas-marker" style="@($"left: {pct.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}%;")"></div>
                 </div>
                 <div class="degas-legend">
-                    <span>0@Loc.T("common.day_short")</span>
-                    <span>7@Loc.T("common.day_short")</span>
-                    <span>21@Loc.T("common.day_short")</span>
-                    <span>35@Loc.T("common.day_short")</span>
-                    <span>42@Loc.T("common.day_short")+</span>
+                    @{
+                        var roast = _coffee.RoastDate!.Value;
+                        var fmt = System.Globalization.CultureInfo.CurrentUICulture;
+                    }
+                    @foreach (var (label, offsetDays) in new (string, int)[] {
+                        ("0" + Loc.T("common.day_short"), 0),
+                        ("7" + Loc.T("common.day_short"), 7),
+                        ("21" + Loc.T("common.day_short"), 21),
+                        ("35" + Loc.T("common.day_short"), 35),
+                        ("42" + Loc.T("common.day_short") + "+", 42)
+                    })
+                    {
+                        <span class="degas-tick">
+                            <span class="degas-tick-days">@label</span>
+                            <span class="degas-tick-date">@roast.AddDays(offsetDays).ToString("dd MMM", fmt)</span>
+                        </span>
+                    }
                 </div>
                 <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block">@Loc.T($"degas.{ZoneToKey(deg.Zone)}_long")</MudText>
             </MudPaper>
@@ -354,11 +366,17 @@ else
     .degas-legend {
         display: flex;
         justify-content: space-between;
-        font-size: 10px;
-        color: #8a7560;
         margin-top: 4px;
         font-variant-numeric: tabular-nums;
     }
+    .degas-tick {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        line-height: 1.15;
+    }
+    .degas-tick-days { font-size: 10px; color: #8a7560; }
+    .degas-tick-date { font-size: 10px; color: var(--coffee-text-soft, #a89a86); }
 </style>
 
 @code {
