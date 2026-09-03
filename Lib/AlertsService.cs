@@ -36,6 +36,11 @@ public class AlertsService(CoffeeDb db, IJSRuntime js, LocalizationService loc)
             .GroupBy(b => b.CoffeeId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // Anti-répétition "past peak" : on ne renotifie plus un café déjà signalé.
+        // Persistant en localStorage (cf. notifications.js).
+        var pastPeakNotified = new HashSet<int>(
+            await _js.InvokeAsync<int[]>("coffeeNotifications.getPastPeakNotified"));
+
         foreach (var c in coffees.Where(x => x.IsOwned && x.FinishedAt is null))
         {
             // Règle 1 : stock bas / vide
@@ -65,8 +70,8 @@ public class AlertsService(CoffeeDb db, IJSRuntime js, LocalizationService loc)
                 }
             }
 
-            // Règle 2 : hors fenêtre optimale de dégazage
-            if (c.RoastDate is not null)
+            // Règle 2 : hors fenêtre optimale de dégazage — une seule notif par café.
+            if (c.RoastDate is not null && !pastPeakNotified.Contains(c.Id))
             {
                 var deg = Degassing.Compute(c.RoastDate);
                 if (deg is not null && deg.Days > 35)
@@ -76,6 +81,8 @@ public class AlertsService(CoffeeDb db, IJSRuntime js, LocalizationService loc)
                         _loc.T("alerts.past_peak_title"),
                         _loc.T("alerts.past_peak_msg", c.Name, deg.Days),
                         c.Id));
+                    // Marque immédiatement pour que la prochaine ouverture n'en re-notifie plus.
+                    await _js.InvokeVoidAsync("coffeeNotifications.markPastPeakNotified", c.Id);
                 }
             }
         }
