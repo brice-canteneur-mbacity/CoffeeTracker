@@ -59,6 +59,8 @@
 
   "coffeeform.title_new": "Nuovo caffè",
   "coffeeform.title_edit": "Modifica caffè",
+  "coffeeform.title_rebuy": "Ricompra questo caffè",
+  "coffeeform.rebuy_hint": "Nuovo sacchetto di «{0}» — aggiorna data di tostatura, peso e prezzo.",
   "coffeeform.section_type": "Tipo",
   "coffeeform.section_origin": "Origine",
   "coffeeform.section_roast": "Tostatura",
@@ -145,6 +147,7 @@
   "coffeedetail.compare_btn": "Confronta {0}/2 preparazioni selezionate",
   "coffeedetail.btn_finish": "Segna come finito",
   "coffeedetail.btn_reopen": "Riapri",
+  "coffeedetail.btn_rebuy": "Ricompra",
   "coffeedetail.snack_finished": "Caffè segnato come finito",
   "coffeedetail.snack_reopened": "Caffè riaperto",
   "coffeedetail.brew_redo_aria": "Rifai questa preparazione",

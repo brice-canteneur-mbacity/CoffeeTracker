@@ -59,6 +59,8 @@
 
   "coffeeform.title_new": "New coffee",
   "coffeeform.title_edit": "Edit coffee",
+  "coffeeform.title_rebuy": "Buy this coffee again",
+  "coffeeform.rebuy_hint": "New bag of \"{0}\" — adjust roast date, weight and price.",
   "coffeeform.section_type": "Type",
   "coffeeform.section_origin": "Origin",
   "coffeeform.section_roast": "Roast",
@@ -145,6 +147,7 @@
   "coffeedetail.compare_btn": "Compare {0}/2 selected brews",
   "coffeedetail.btn_finish": "Mark finished",
   "coffeedetail.btn_reopen": "Reopen",
+  "coffeedetail.btn_rebuy": "Buy again",
   "coffeedetail.snack_finished": "Coffee marked finished",
   "coffeedetail.snack_reopened": "Coffee reopened",
   "coffeedetail.brew_redo_aria": "Redo this brew",
