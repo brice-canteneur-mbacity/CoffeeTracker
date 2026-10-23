@@ -59,6 +59,8 @@
 
   "coffeeform.title_new": "Nouveau café",
   "coffeeform.title_edit": "Modifier le café",
+  "coffeeform.title_rebuy": "Racheter ce café",
+  "coffeeform.rebuy_hint": "Nouveau sac de « {0} » — ajuste la date de torréfaction, le poids et le prix.",
   "coffeeform.section_type": "Type",
   "coffeeform.section_origin": "Origine",
   "coffeeform.section_roast": "Torréfaction",
@@ -145,6 +147,7 @@
   "coffeedetail.compare_btn": "Comparer {0}/2 brews sélectionnés",
   "coffeedetail.btn_finish": "Marquer terminé",
   "coffeedetail.btn_reopen": "Rouvrir",
+  "coffeedetail.btn_rebuy": "Racheter ce café",
   "coffeedetail.snack_finished": "Café marqué terminé",
   "coffeedetail.snack_reopened": "Café rouvert",
   "coffeedetail.brew_redo_aria": "Refaire ce brew",

@@ -4,6 +4,10 @@
     - IsOwned = false → café simplement dégusté (champs achats masqués)
     - IsBlend = true  → masque les champs origine et affiche un champ Composition libre
     Un sélecteur DecafProcess apparaît conditionnellement quand IsDecaf est coché.
+    Query ?fromCoffeeId=N : "racheter" un café existant — on repart de ses champs descriptifs
+    (torréfacteur, nom, origine, process…) mais on remet à zéro les champs liés au sac
+    (RoastDate, poids, prix, ajustement stock, FinishedAt) pour que l'utilisateur n'ait à ressaisir
+    que ce qui change entre deux achats.
 *@
 @page "/coffees/new"
 @page "/coffees/{Id:int}/edit"
@@ -14,9 +18,9 @@
 @inject IJSRuntime JS
 @inject LocalizationService Loc
 
-<PageTitle>@(IsEdit ? Loc.T("coffeeform.title_edit") : Loc.T("coffeeform.title_new"))</PageTitle>
+<PageTitle>@PageTitleText</PageTitle>
 
-<PageHeader Title="@(IsEdit ? Loc.T("coffeeform.title_edit") : Loc.T("coffeeform.title_new"))" Back="true" BackUrl="@(IsEdit ? $"coffees/{Id}" : "coffees")" />
+<PageHeader Title="@PageTitleText" Back="true" BackUrl="@BackUrl" />
 
 <EditForm Model="_model" OnValidSubmit="SaveAsync">
     <DataAnnotationsValidator />
@@ -158,6 +162,13 @@
             @(IsEdit ? Loc.T("common.save") : Loc.T("coffeeform.btn_create"))
         </MudButton>
 
+        @if (_isRebuy && !string.IsNullOrEmpty(_rebuySourceName))
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary text-center" Style="margin-top:-8px;">
+                @Loc.T("coffeeform.rebuy_hint", _rebuySourceName)
+            </MudText>
+        }
+
     </MudStack>
 </EditForm>
 
@@ -172,7 +183,20 @@
 
 @code {
     [Parameter] public int? Id { get; set; }
+    [SupplyParameterFromQuery(Name = "fromCoffeeId")] public int? FromCoffeeId { get; set; }
     private bool IsEdit => Id is not null;
+    private bool _isRebuy;
+    private string? _rebuySourceName;
+
+    private string PageTitleText =>
+        IsEdit ? Loc.T("coffeeform.title_edit")
+        : _isRebuy ? Loc.T("coffeeform.title_rebuy")
+        : Loc.T("coffeeform.title_new");
+
+    private string BackUrl =>
+        IsEdit ? $"coffees/{Id}"
+        : _isRebuy && FromCoffeeId is int src ? $"coffees/{src}"
+        : "coffees";
 
     private Coffee _model = new();
     private DateTime? _purchaseDate = DateTime.Today;
@@ -196,6 +220,43 @@
                 _model = c;
                 _purchaseDate = c.PurchaseDate.ToDateTime(TimeOnly.MinValue);
                 _roastDate = c.RoastDate?.ToDateTime(TimeOnly.MinValue);
+            }
+        }
+        else if (FromCoffeeId is int srcId)
+        {
+            var src = await Db.Coffees.Get(srcId);
+            if (src is not null)
+            {
+                // Nouveau sac du même café : on copie l'identité (torréfacteur/origine/process/
+                // notes torréfacteur/photo) et on repart neuf sur ce qui change entre deux achats
+                // (date torréfaction, poids, prix, ajustement stock, FinishedAt).
+                _model = new Coffee
+                {
+                    Roaster = src.Roaster,
+                    Name = src.Name,
+                    Country = src.Country,
+                    Region = src.Region,
+                    Farm = src.Farm,
+                    Producer = src.Producer,
+                    Altitude = src.Altitude,
+                    Variety = src.Variety,
+                    Process = src.Process,
+                    ProcessNotes = src.ProcessNotes,
+                    IsDecaf = src.IsDecaf,
+                    DecafMethod = src.DecafMethod,
+                    IsBlend = src.IsBlend,
+                    Composition = src.Composition,
+                    RoastLevel = src.RoastLevel,
+                    Currency = src.Currency,
+                    TastingNotes = src.TastingNotes,
+                    PhotoDataUrl = src.PhotoDataUrl,
+                    IsOwned = true,
+                    PurchaseDate = DateOnly.FromDateTime(DateTime.Today),
+                };
+                _purchaseDate = DateTime.Today;
+                _roastDate = null;
+                _isRebuy = true;
+                _rebuySourceName = src.Name;
             }
         }
     }

@@ -302,6 +302,11 @@ else
         <MudGrid Spacing="2">
             @if (_coffee.IsOwned)
             {
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.AddShoppingCart"
+                               OnClick="Rebuy">@Loc.T("coffeedetail.btn_rebuy")</MudButton>
+                </MudItem>
                 <MudItem xs="6">
                     <MudButton Variant="Variant.Filled" Color="Color.Default" FullWidth="true"
                                StartIcon="@(_coffee.FinishedAt is null ? Icons.Material.Filled.Check : Icons.Material.Filled.Refresh)"
@@ -451,6 +456,11 @@ else
     }
 
     private void GoDuplicate(int brewId) => Nav.NavigateTo($"brews/new?fromBrewId={brewId}");
+
+    /// <summary>Nouveau sac du même café — ouvre le formulaire pré-rempli avec les champs
+    /// descriptifs (torréfacteur/origine/process/notes torréfacteur/photo) copiés depuis
+    /// ce café, et seuls poids/prix/dates à ressaisir.</summary>
+    private void Rebuy() => Nav.NavigateTo($"coffees/new?fromCoffeeId={Id}");
 
     private void ToggleSelected(int brewId)
     {
