@@ -47,8 +47,9 @@ public class CoffeeDb : Db<CoffeeDb>
     //   6   : ajout MilkType (nullable) sur Brew et CoffeeShopVisit — pas de migration data
     //   7   : Rating int → decimal sur Brew et CoffeeShopVisit (demi-étoiles) — pas de migration data
     //   8   : ajout du store Snapshots (clichés locaux de sauvegarde) — pas de migration data
+    //   9   : ajout FamilyGuid (nullable) sur Coffee (regroupement des sacs d'un même café) — pas de migration data
     public CoffeeDb(BlazorDexieOptions options)
-        : base("coffee-tracker", 8, Array.Empty<IDbVersion>(), options)
+        : base("coffee-tracker", 9, Array.Empty<IDbVersion>(), options)
     {
     }
 }
