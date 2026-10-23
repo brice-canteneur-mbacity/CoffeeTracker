@@ -206,6 +206,79 @@ else
             </MudPaper>
         }
 
+        @{ var familyAndDetected = _family.Concat(_detected).ToList(); }
+        @if (familyAndDetected.Count > 0)
+        {
+            <MudPaper Class="pa-4" Elevation="0">
+                <div class="d-flex align-center justify-space-between mb-2">
+                    <MudText Typo="Typo.h6">@Loc.T("coffeedetail.section_family", familyAndDetected.Count)</MudText>
+                    @if (_coffee.FamilyGuid is not null && _detected.Count == 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">@Loc.T("coffeedetail.family_confirmed")</MudChip>
+                    }
+                </div>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-2">
+                    @Loc.T("coffeedetail.family_hint")
+                </MudText>
+                <MudList T="Coffee" Class="pa-0">
+                    @foreach (var p in familyAndDetected.OrderByDescending(c => c.PurchaseDate))
+                    {
+                        var isDetected = _detected.Contains(p);
+                        <MudListItem T="Coffee" OnClick="@(() => Nav.NavigateTo($"coffees/{p.Id}"))" Class="px-2">
+                            <div class="d-flex align-center" style="gap:8px;">
+                                @if (!string.IsNullOrEmpty(p.PhotoDataUrl))
+                                {
+                                    <img src="@p.PhotoDataUrl" alt="" class="thumb-sm" style="object-fit:cover;" />
+                                }
+                                else
+                                {
+                                    <div class="thumb-sm thumb-placeholder">
+                                        <MudIcon Icon="@Icons.Material.Filled.Coffee" Size="Size.Small" />
+                                    </div>
+                                }
+                                <div style="flex:1; min-width:0;">
+                                    <div class="d-flex align-center" style="gap:6px; flex-wrap:wrap;">
+                                        <MudText Style="font-weight:500;">
+                                            @Format.Date(p.PurchaseDate)
+                                            @if (p.WeightGrams is int w) { <span class="mud-text-secondary" style="font-weight:400;"> · @w g</span> }
+                                        </MudText>
+                                        @if (isDetected)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@Loc.T("coffeedetail.family_detected_chip")</MudChip>
+                                        }
+                                        @if (p.FinishedAt is not null)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Filled">@Loc.T("coffees.tab_finished")</MudChip>
+                                        }
+                                        else if (!p.IsOwned)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@Loc.T("coffeedetail.value_tasted")</MudChip>
+                                        }
+                                    </div>
+                                    @if (p.RoastDate is not null)
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                            @Loc.T("coffeedetail.label_roast_date"): @Format.Date(p.RoastDate)
+                                        </MudText>
+                                    }
+                                </div>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+                @if (_detected.Count > 0)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Link"
+                               OnClick="ValidateFamilyAsync"
+                               Disabled="_validatingFamily"
+                               Class="mt-3">
+                        @Loc.T("coffeedetail.family_validate_btn", _detected.Count)
+                    </MudButton>
+                }
+            </MudPaper>
+        }
+
         @if (_coffee.IsOwned)
         {
         <MudPaper Class="pa-4" Elevation="0">
@@ -392,6 +465,11 @@ else
     private List<Brew> _brews = new();
     private Dictionary<int, Machine> _machinesById = new();
     private readonly HashSet<int> _selectedBrewIds = new();
+    /// <summary>Autres sacs du même café, déjà validés (même <see cref="Coffee.FamilyGuid"/>).</summary>
+    private List<Coffee> _family = new();
+    /// <summary>Autres sacs auto-détectés (même torréfacteur + nom, FamilyGuid différent/null) — candidats à valider.</summary>
+    private List<Coffee> _detected = new();
+    private bool _validatingFamily;
     private List<ChartSeries<double>>? _chartSeries;
     private string[] _chartLabels = Array.Empty<string>();
     private readonly LineChartOptions _chartOptions = new()
@@ -431,6 +509,7 @@ else
             _brews = raw.OrderByDescending(b => b.Date).ToList();
             var machines = await Db.Machines.ToCollection().ToList();
             _machinesById = machines.ToDictionary(m => m.Id, m => m);
+            await LoadFamilyAsync();
 
             if (_brews.Count >= 3)
             {
@@ -461,6 +540,83 @@ else
     /// descriptifs (torréfacteur/origine/process/notes torréfacteur/photo) copiés depuis
     /// ce café, et seuls poids/prix/dates à ressaisir.</summary>
     private void Rebuy() => Nav.NavigateTo($"coffees/new?fromCoffeeId={Id}");
+
+    /// <summary>
+    /// Charge en deux listes les sacs liés au café courant :
+    ///  - <c>_family</c>   : ceux déjà regroupés (même <see cref="Coffee.FamilyGuid"/>).
+    ///  - <c>_detected</c> : les candidats auto-détectés par torréfacteur + nom (case-insensitive)
+    ///                       dont le FamilyGuid diffère — à proposer en validation à l'utilisateur.
+    /// </summary>
+    private async Task LoadFamilyAsync()
+    {
+        _family.Clear();
+        _detected.Clear();
+        if (_coffee is null) return;
+
+        var all = await Db.Coffees.ToCollection().ToList();
+        var others = all.Where(c => c.Id != _coffee.Id).ToList();
+
+        var roaster = _coffee.Roaster?.Trim() ?? string.Empty;
+        var name = _coffee.Name?.Trim() ?? string.Empty;
+        var sc = StringComparison.OrdinalIgnoreCase;
+
+        foreach (var other in others)
+        {
+            if (_coffee.FamilyGuid is Guid fg && other.FamilyGuid == fg)
+            {
+                _family.Add(other);
+                continue;
+            }
+            var sameRoaster = string.Equals(other.Roaster?.Trim() ?? string.Empty, roaster, sc);
+            var sameName = string.Equals(other.Name?.Trim() ?? string.Empty, name, sc);
+            if (sameRoaster && sameName && !string.IsNullOrEmpty(name))
+            {
+                _detected.Add(other);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Valide la famille : on prend le <see cref="Coffee.FamilyGuid"/> du sac le plus ancien
+    /// (par date d'achat, puis <see cref="Coffee.CreatedAt"/>) s'il en a un, sinon on en génère
+    /// un nouveau, et on l'applique à tous les sacs du groupe (famille + détectés + courant).
+    /// </summary>
+    private async Task ValidateFamilyAsync()
+    {
+        if (_coffee is null || _detected.Count == 0) return;
+        _validatingFamily = true;
+        try
+        {
+            var pool = new List<Coffee> { _coffee };
+            pool.AddRange(_family);
+            pool.AddRange(_detected);
+
+            var oldest = pool
+                .OrderBy(c => c.PurchaseDate)
+                .ThenBy(c => c.CreatedAt)
+                .First();
+            var familyGuid = oldest.FamilyGuid ?? Guid.NewGuid();
+
+            foreach (var c in pool.Where(c => c.FamilyGuid != familyGuid))
+            {
+                c.FamilyGuid = familyGuid;
+                c.UpdatedAt = DateTime.UtcNow;
+                await Db.Coffees.Put(c);
+            }
+
+            Snackbar.Add(Loc.T("coffeedetail.snack_family_validated", pool.Count), Severity.Success);
+            _coffee = await Db.Coffees.Get(Id);
+            await LoadFamilyAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(Loc.T("common.error_prefix", ex.Message), Severity.Error);
+        }
+        finally
+        {
+            _validatingFamily = false;
+        }
+    }
 
     private void ToggleSelected(int brewId)
     {

@@ -252,6 +252,9 @@
                     PhotoDataUrl = src.PhotoDataUrl,
                     IsOwned = true,
                     PurchaseDate = DateOnly.FromDateTime(DateTime.Today),
+                    // Si la source a déjà une famille validée, on l'hérite — sinon null et
+                    // l'utilisateur peut valider la famille plus tard depuis la fiche détail.
+                    FamilyGuid = src.FamilyGuid,
                 };
                 _purchaseDate = DateTime.Today;
                 _roastDate = null;

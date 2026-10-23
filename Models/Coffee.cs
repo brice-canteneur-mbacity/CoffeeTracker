@@ -75,4 +75,12 @@ public class Coffee
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Identifiant partagé par tous les sacs du même café (torréfacteur + nom), achetés
+    /// à des dates différentes. null = pas encore rattaché à une famille.
+    /// Rempli lors de la validation manuelle depuis la fiche détail — on prend le FamilyGuid
+    /// du sac le plus ancien (ou on en génère un si personne n'en a) et on le propage.
+    /// </summary>
+    public Guid? FamilyGuid { get; set; }
 }
